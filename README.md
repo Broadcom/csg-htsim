@@ -4,7 +4,7 @@ htsim is a high performance discrete event simulator, inspired by ns2, but much 
 
 ## Getting Started
 
-There are some limited instructions in the [wiki](https://github.com/correctnetworks/htsim/wiki).  
+There are some limited instructions in the [wiki](https://github.com/Broadcom/csg-htsim/wiki).  
 
 htsim is written in C++, and has no dependencies.  It should compile and run with g++ or clang on MacOS or Linux.  To compile htsim, cd into the sim directory and run make.
 
