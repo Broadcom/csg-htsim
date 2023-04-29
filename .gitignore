@@ -1,0 +1,7 @@
+*.out
+*~
+*.bak
+*.bak2
+*#
+*.o
+.DS_store

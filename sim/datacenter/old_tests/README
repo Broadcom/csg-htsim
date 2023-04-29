@@ -1,0 +1,12 @@
+The files in this directory are old simulation scenarios from previous
+work.  Some of them are referenced from the EXAMPLES directory.  We no
+longer build them by default, but we'd like to keep them working if
+possible.  To compile them just run make in this directory, after
+running make in the root directory to compile the dependencies.
+
+You can still create standalone simulation binaries the way they are
+done in this directory, and add them here if you wish.  However, for
+most purposes it is better to use a parameterized main file such as
+main_ndp.cpp and then import declarative topologies from
+datacenter/connection_matrices for each simulation run.  This involves
+a lot less effort to keep things working when APIs change.
