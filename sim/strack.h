@@ -69,7 +69,11 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     void set_cwnd(uint32_t cwnd);
     void set_hdiv(double hdiv);
 
-    void set_paths(vector<const Route*>* rt);
+    void set_dst(uint32_t dst) {_dstaddr = dst;}
+
+    // void set_paths(vector<const Route*>* rt);
+    void set_paths(uint32_t no_of_paths);
+
     void permute_paths();
 
     // should really be private, but loggers want to see:
@@ -138,6 +142,19 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     uint32_t drops() { return _drops;}
     bool send_next_packet();
     void send_callback();  // called by scheduler when it has more space
+
+    static void setRouteStrategy(RouteStrategy strat) {_route_strategy = strat;}
+    static void setPathEntropySize(uint32_t path_entropy_size) {_path_entropy_size = path_entropy_size;}
+    inline void set_flowid(flowid_t flow_id) { _flow.set_flowid(flow_id);}
+    inline flowid_t flow_id() const { return _flow.flow_id();}
+
+
+    static RouteStrategy _route_strategy;
+    static uint32_t _path_entropy_size; // now many paths do we include in our path set
+    uint32_t _dstaddr;
+    vector<int> _path_ids;
+    uint16_t _crt_path;
+
 protected:
     // connection state
     bool _established;
@@ -166,6 +183,8 @@ protected:
     uint32_t _path_index;
     const Route* _route;
     STrackPacer _pacer;
+
+
 
 private:
     int send_packets();
@@ -214,13 +233,20 @@ class STrackSink : public PacketSink, public DataReceiver {
 
     uint64_t reorder_buffer_size() {return _received.size();};
     uint64_t reorder_buffer_max() {return _ooo;};
+
+    static RouteStrategy _route_strategy;
+    static void setRouteStrategy(RouteStrategy strat) {_route_strategy = strat;}
+
+    void set_src(uint32_t s) { _srcaddr = s; }
+    uint32_t _srcaddr;
+
  private:
     // Connectivity
     void connect(STrackSrc& src, const Route& route);
     const Route* _route;
 
     // Mechanism
-    void send_ack(simtime_picosec ts);
+    void send_ack(simtime_picosec ts, bool ecn_marked);
 
     list<STrackAck::seq_t> _received; /* list of packets above a hole, that 
                                       we've received */

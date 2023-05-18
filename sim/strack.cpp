@@ -6,6 +6,10 @@
 #define KILL_THRESHOLD 5
 uint32_t STrackSrc::_default_cwnd = 12;
 
+RouteStrategy STrackSrc::_route_strategy = NOT_SET;
+RouteStrategy STrackSink::_route_strategy = NOT_SET;
+uint32_t STrackSrc::_path_entropy_size = 10000000;
+
 ////////////////////////////////////////////////////////////////
 //  STRACK SOURCE
 ////////////////////////////////////////////////////////////////
@@ -261,6 +265,10 @@ STrackSrc::handle_ack(STrackAck::seq_t ackno) {
 int 
 STrackSrc::send_packets() {
     uint32_t c = _strack_cwnd + _inflate;
+    if((_flow.flow_id() & 0xff) == 0){
+        cout <<" flow_id " <<  _flow.flow_id() << " _established "<< _established << " c " << c << endl;
+    }
+    
     int sent_count = 0;
     //cout << eventlist().now() << " " << nodename() << " cwnd " << _strack_cwnd << " + " << _inflate << endl;
     if (!_established){
@@ -314,6 +322,11 @@ STrackSrc::send_packets() {
 
     while ((_last_acked + c >= _highest_sent + mss()) && more_data_available()) {
 
+        if ((_flow.flow_id() & 0xff) == 0)
+        {
+            cout << " flow_id " << _flow.flow_id() << " _highest_sent " << _highest_sent << " _flow_size " << _flow_size ;
+            cout << " mss() " << mss() << endl;
+        }
         if (_pacer.is_pending()) {
             //Our cwnd is now greater than one packet and we've passed
             //the tests to send in window mode, but we were in pacing
@@ -332,6 +345,11 @@ STrackSrc::send_packets() {
             //cout << timeAsUs(eventlist().now()) << " " << nodename() << " RTO at " << timeAsUs(_RFC2988_RTO_timeout) << "us" << endl;
         }
     }
+
+        if ((_flow.flow_id() & 0xff) == 0)
+        {
+            cout << " flow_id " << _flow.flow_id() << " sent_count " << sent_count << endl;
+        }
     return sent_count;
 }
 
@@ -344,9 +362,9 @@ STrackSrc::send_next_packet() {
         return false;
     }
     _deferred_send = false;
-    //cout << "src " << get_id() << " sending " << _flow.flow_id() << " route " << _route << endl;
-    STrackPacket* p = STrackPacket::newpkt(_flow, *_route, _highest_sent+1, mss());
-    //cout << timeAsUs(eventlist().now()) << " " << nodename() << " sent " << _highest_sent+1 << "-" << _highest_sent+mss() << " dsn " << dsn << endl;
+    // cout << "src " << get_id() << " sending " << _flow.flow_id() << " route " << _route << endl;
+    STrackPacket* p = STrackPacket::newpkt(_flow, *_route, _highest_sent+1, mss(), _dstaddr);
+    // cout << timeAsUs(eventlist().now()) << " " << nodename() << " sent " << _highest_sent+1 << "-" << _highest_sent+mss() << endl;
     _highest_sent += mss();  
     _packets_sent += mss();
 
@@ -382,7 +400,7 @@ STrackSrc::retransmit_packet() {
         return;        
     }
     //cout << timeAsUs(eventlist().now()) << " sending seqno " << _last_acked+1 << endl;
-    STrackPacket* p = STrackPacket::newpkt(_flow, *_route, _last_acked+1, mss());
+    STrackPacket* p = STrackPacket::newpkt(_flow, *_route, _last_acked+1, mss(), _dstaddr);
 
     p->flow().logTraffic(*p, *this, TrafficLogger::PKT_CREATESEND);
     p->set_ts(eventlist().now());
@@ -439,8 +457,11 @@ STrackSrc::receivePacket(Packet& pkt)
 
     assert(ackno >= _last_acked);  // no dups or reordering allowed in this simple simulator
     simtime_picosec delay = eventlist().now() - ts_echo;
-    adjust_cwnd(delay, ackno);
-
+    //Yanfang: remove window adjustment
+    // adjust_cwnd(delay, ackno);
+    if((_flow.flow_id() & 0xff) == 0){
+        cout <<" flow_id " <<  _flow.flow_id() << " ackno "<< ackno << endl;
+    }
     handle_ack(ackno);
 }
 
@@ -566,26 +587,53 @@ STrackSrc::set_hdiv(double hdiv) {
     _h = _base_delay/hdiv;            // path length scaling constant.  Value is a guess, will be clarified by experiment
 }
 
-void
-STrackSrc::set_paths(vector<const Route*>* rt_list){
-    size_t no_of_paths = rt_list->size();
-    _paths.resize(no_of_paths);
-    for (size_t i=0; i < no_of_paths; i++){
-        Route* rt_tmp = new Route(*(rt_list->at(i)));
-        if (!_scheduler) {
-            _scheduler = dynamic_cast<BaseScheduler*>(rt_tmp->at(0));
-            assert(_scheduler);
-        } else {
-            // sanity check all paths share the same scheduler.
-            // If we ever want to use multiple NICs, this will need fixing
-            assert(_scheduler == dynamic_cast<BaseScheduler*>(rt_tmp->at(0)));
+// void
+// STrackSrc::set_paths(vector<const Route*>* rt_list){
+//     size_t no_of_paths = rt_list->size();
+//     _paths.resize(no_of_paths);
+//     for (size_t i=0; i < no_of_paths; i++){
+//         Route* rt_tmp = new Route(*(rt_list->at(i)));
+//         if (!_scheduler) {
+//             _scheduler = dynamic_cast<BaseScheduler*>(rt_tmp->at(0));
+//             assert(_scheduler);
+//         } else {
+//             // sanity check all paths share the same scheduler.
+//             // If we ever want to use multiple NICs, this will need fixing
+//             assert(_scheduler == dynamic_cast<BaseScheduler*>(rt_tmp->at(0)));
+//         }
+//         rt_tmp->set_path_id(i, rt_list->size());
+//         _paths[i] = rt_tmp;
+//     }
+//     permute_paths();
+//     _path_index = 0;
+//     reroute(*_paths[0]);
+// }
+
+
+void STrackSrc::set_paths(uint32_t no_of_paths){
+    switch (_route_strategy) {
+    case SCATTER_PERMUTE:
+    case SCATTER_RANDOM:
+    case PULL_BASED:
+    case SCATTER_ECMP:
+    case SINGLE_PATH:
+    case NOT_SET:
+        abort();
+
+    case ECMP_FIB:
+    case ECMP_FIB_ECN:
+    case REACTIVE_ECN:
+        assert(_paths.size() == 0);
+        _paths.resize(no_of_paths);
+        _path_ids.resize(no_of_paths);
+        for (unsigned int i=0;i<no_of_paths;i++){
+            _paths[i]=NULL;
+                _path_ids[i] = i;
         }
-        rt_tmp->set_path_id(i, rt_list->size());
-        _paths[i] = rt_tmp;
+        _crt_path = 0;
+        permute_paths();
+        break;
     }
-    permute_paths();
-    _path_index = 0;
-    reroute(*_paths[0]);
 }
 
 void
@@ -612,7 +660,7 @@ bool STrackSrc::more_data_available() const {
     if (_stop_time && eventlist().now() >= _stop_time) {
         return false;
     }
-    return _highest_sent + mss() <= _flow_size;
+    return (_highest_sent + mss()) <= _flow_size;
 }
 
 void 
@@ -756,9 +804,13 @@ STrackSink::receivePacket(Packet& pkt) {
     STrackPacket *p = (STrackPacket*)(&pkt);
     STrackPacket::seq_t seqno = p->seqno();
     simtime_picosec ts = p->ts();
-    //cout << "receivePacket seq" << seqno << endl;
+    if((p->flow_id() & 0xff) == 0){
+        cout << "receivePacket seq " << seqno << endl;
+    }
     int size = p->size(); // TODO: the following code assumes all packets are the same size
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_RCVDESTROY);
+
+    bool marked = (p->flags()&ECN_CE) != 0; // ECN for load balancing
 
     if (seqno == _cumulative_ack+1) { // it's the next expected seq no
         _cumulative_ack = seqno + size - 1;
@@ -801,12 +853,22 @@ STrackSink::receivePacket(Packet& pkt) {
 
     // whatever the cumulative ack does (eg filling holes), the echoed TS is always from
     // the packet we just received
-    send_ack(ts);
+    send_ack(ts, marked);
 }
 
 void 
-STrackSink::send_ack(simtime_picosec ts) {
-    STrackAck *ack = STrackAck::newpkt(_src->flow(), *_route, 0, _cumulative_ack, ts);
+STrackSink::send_ack(simtime_picosec ts, bool ecn_marked) {
+    STrackAck *ack = STrackAck::newpkt(_src->flow(), *_route, 0, _cumulative_ack, ts, _srcaddr);
+        // set ECN echo only if that is selected strategy
+    ack->set_ecn_echo(ecn_marked &&
+                      (_route_strategy == ECMP_FIB_ECN ||
+                       _route_strategy == REACTIVE_ECN));
+    if (ecn_marked &&
+        (_route_strategy == ECMP_FIB_ECN ||
+         _route_strategy == REACTIVE_ECN))
+        cout << "setting ECE\n";
+    assert(ack);
+
     ack->flow().logTraffic(*ack,*this,TrafficLogger::PKT_CREATESEND);
     ack->sendOn();
 }
