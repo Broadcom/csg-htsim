@@ -147,13 +147,16 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     static void setPathEntropySize(uint32_t path_entropy_size) {_path_entropy_size = path_entropy_size;}
     inline void set_flowid(flowid_t flow_id) { _flow.set_flowid(flow_id);}
     inline flowid_t flow_id() const { return _flow.flow_id();}
-
+    int choose_route();
+    void permute_sequence(vector<int>& seq);
+    void count_ecn(int32_t path_id);
 
     static RouteStrategy _route_strategy;
     static uint32_t _path_entropy_size; // now many paths do we include in our path set
     uint32_t _dstaddr;
-    vector<int> _path_ids;
     uint16_t _crt_path;
+    vector<int> _path_ids;
+    vector<uint16_t> _path_ecns; //keeps path scores
 
 protected:
     // connection state
@@ -246,7 +249,7 @@ class STrackSink : public PacketSink, public DataReceiver {
     const Route* _route;
 
     // Mechanism
-    void send_ack(simtime_picosec ts, bool ecn_marked);
+    void send_ack(simtime_picosec ts, bool ecn_marked, int32_t path_id);
 
     list<STrackAck::seq_t> _received; /* list of packets above a hole, that 
                                       we've received */

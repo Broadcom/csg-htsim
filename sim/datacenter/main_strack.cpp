@@ -480,7 +480,8 @@ int main(int argc, char **argv) {
     //                                            switch_latency,
     //                                            snd_type);
     FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, 
-                                               NULL, &eventlist, NULL, qt, SWIFT_SCHEDULER, 0);
+                                               NULL, &eventlist, NULL, qt, SWIFT_SCHEDULER, 0,
+                                               cwnd*Packet::data_packet_size());
 #endif
 
 #ifdef OV_FAT_TREE
@@ -653,8 +654,8 @@ int main(int argc, char **argv) {
                 //register src and snk to receive packets from their respective TORs. 
                 assert(top->switches_lp[top->HOST_POD_SWITCH(src)]);
                 assert(top->switches_lp[top->HOST_POD_SWITCH(dest)]);
-                top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src,strackSrc->flow_id(),strackSrc);
-                top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest,strackSrc->flow_id(),strackSnk);
+                top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src,(int)strackSrc->flow_id(),strackSrc);
+                top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest,(int)strackSrc->flow_id(),strackSnk);
                 break;
             }
         case SINGLE_PATH:

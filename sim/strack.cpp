@@ -233,8 +233,8 @@ STrackSrc::handle_ack(STrackAck::seq_t ackno) {
     }
     // Not yet in fast recovery. What should we do instead?
     _dupacks++;
-
-    if (_dupacks!=3)  { // not yet serious worry
+    // YANFANG: dupack num
+    if (_dupacks!=20)  { // not yet serious worry
         log(STrackLogger::STRACK_RCV_DUP);
         applySTrackLimits();
         send_packets();
@@ -265,9 +265,9 @@ STrackSrc::handle_ack(STrackAck::seq_t ackno) {
 int 
 STrackSrc::send_packets() {
     uint32_t c = _strack_cwnd + _inflate;
-    if((_flow.flow_id() & 0xff) == 0){
-        cout <<" flow_id " <<  _flow.flow_id() << " _established "<< _established << " c " << c << endl;
-    }
+    // if((_flow.flow_id() & 0xff) == 0){
+    //     cout <<" flow_id " <<  _flow.flow_id() << " _established "<< _established << " c " << c << endl;
+    // }
     
     int sent_count = 0;
     //cout << eventlist().now() << " " << nodename() << " cwnd " << _strack_cwnd << " + " << _inflate << endl;
@@ -322,11 +322,11 @@ STrackSrc::send_packets() {
 
     while ((_last_acked + c >= _highest_sent + mss()) && more_data_available()) {
 
-        if ((_flow.flow_id() & 0xff) == 0)
-        {
-            cout << " flow_id " << _flow.flow_id() << " _highest_sent " << _highest_sent << " _flow_size " << _flow_size ;
-            cout << " mss() " << mss() << endl;
-        }
+        // if ((_flow.flow_id() & 0xff) == 0)
+        // {
+        //     cout << " flow_id " << _flow.flow_id() << " _highest_sent " << _highest_sent << " _flow_size " << _flow_size ;
+        //     cout << " mss() " << mss() << endl;
+        // }
         if (_pacer.is_pending()) {
             //Our cwnd is now greater than one packet and we've passed
             //the tests to send in window mode, but we were in pacing
@@ -346,10 +346,10 @@ STrackSrc::send_packets() {
         }
     }
 
-        if ((_flow.flow_id() & 0xff) == 0)
-        {
-            cout << " flow_id " << _flow.flow_id() << " sent_count " << sent_count << endl;
-        }
+        // if ((_flow.flow_id() & 0xff) == 0)
+        // {
+        //     cout << " flow_id " << _flow.flow_id() << " sent_count " << sent_count << endl;
+        // }
     return sent_count;
 }
 
@@ -364,10 +364,11 @@ STrackSrc::send_next_packet() {
     _deferred_send = false;
     // cout << "src " << get_id() << " sending " << _flow.flow_id() << " route " << _route << endl;
     STrackPacket* p = STrackPacket::newpkt(_flow, *_route, _highest_sent+1, mss(), _dstaddr);
+    p->set_pathid(_path_ids[choose_route()]);
     // cout << timeAsUs(eventlist().now()) << " " << nodename() << " sent " << _highest_sent+1 << "-" << _highest_sent+mss() << endl;
     _highest_sent += mss();  
     _packets_sent += mss();
-
+    
     p->flow().logTraffic(*p, *this, TrafficLogger::PKT_CREATESEND);
     p->set_ts(eventlist().now());
     p->sendOn();
@@ -422,6 +423,13 @@ STrackSrc::receivePacket(Packet& pkt)
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_RCVDESTROY);
   
     ts_echo = p->ts_echo();
+    int32_t pathid_echo = p->pathid_echo();
+    if (p->ecn_echo()) {
+        count_ecn(pathid_echo);
+    }
+    if((_flow.flow_id() & 0xff) == 24){
+        cout <<" flow_id " <<  _flow.flow_id() << " ackno "<< ackno << " ecn " << p->ecn_echo() <<" path_id " << pathid_echo <<  endl;
+    }    
     p->free();
 
     if (ackno < _last_acked) {
@@ -459,10 +467,65 @@ STrackSrc::receivePacket(Packet& pkt)
     simtime_picosec delay = eventlist().now() - ts_echo;
     //Yanfang: remove window adjustment
     // adjust_cwnd(delay, ackno);
-    if((_flow.flow_id() & 0xff) == 0){
-        cout <<" flow_id " <<  _flow.flow_id() << " ackno "<< ackno << endl;
-    }
+
     handle_ack(ackno);
+}
+
+/* Choose a route for a particular packet */
+int STrackSrc::choose_route() {
+    switch(_route_strategy) {
+    case PULL_BASED:
+    {
+        /* this case is basically SCATTER_PERMUTE, but avoiding bad paths. */
+        break;
+    }
+    case SCATTER_RANDOM:
+        //ECMP
+        break;
+    case SCATTER_PERMUTE:
+    case SCATTER_ECMP:
+        //Cycle through a permutation.  Generally gets better load balancing than SCATTER_RANDOM.
+        break;
+    case ECMP_FIB:
+        //Cycle through a permutation.  Generally gets better load balancing than SCATTER_RANDOM.
+        break;
+    case ECMP_FIB_ECN:
+        {
+        //Cycle through a permutation, but use ECN to skip paths
+        while(1) {
+            _crt_path++;
+            if (_crt_path == _paths.size()) {
+                permute_paths();
+                _crt_path = 0;
+            }
+            if (_path_ecns[_path_ids[_crt_path]] > 0) {
+                _path_ecns[_path_ids[_crt_path]]--;
+                /*
+                if (_log_me) {
+                    cout << eventlist().now() << " skipped " << _path_ids[_crt_path] << " " << _path_ecns[_path_ids[_crt_path]] << endl;
+                }
+                */
+               cout << eventlist().now() << " skipped " << _path_ids[_crt_path] << " " << _path_ecns[_path_ids[_crt_path]] << endl;
+            } else {
+                // eventually we'll find one that's zero
+                break;
+            }
+        }
+        // if((_flow.flow_id() & 0xff) == 3){
+        //     cout << eventlist().now() << " Using STRACK with pathid " << _path_ids[_crt_path] << endl;
+        // }
+            
+        break;
+        }
+    case SINGLE_PATH:
+        abort();  //not sure if this can ever happen - if it can, remove this line
+    case REACTIVE_ECN:
+        return _crt_path;
+    case NOT_SET:
+        abort();  // shouldn't be here at all
+    }        
+
+    return _crt_path;
 }
 
 void
@@ -608,32 +671,8 @@ STrackSrc::set_hdiv(double hdiv) {
 //     _path_index = 0;
 //     reroute(*_paths[0]);
 // }
-
-
-void STrackSrc::set_paths(uint32_t no_of_paths){
-    switch (_route_strategy) {
-    case SCATTER_PERMUTE:
-    case SCATTER_RANDOM:
-    case PULL_BASED:
-    case SCATTER_ECMP:
-    case SINGLE_PATH:
-    case NOT_SET:
-        abort();
-
-    case ECMP_FIB:
-    case ECMP_FIB_ECN:
-    case REACTIVE_ECN:
-        assert(_paths.size() == 0);
-        _paths.resize(no_of_paths);
-        _path_ids.resize(no_of_paths);
-        for (unsigned int i=0;i<no_of_paths;i++){
-            _paths[i]=NULL;
-                _path_ids[i] = i;
-        }
-        _crt_path = 0;
-        permute_paths();
-        break;
-    }
+void STrackSrc::count_ecn(int32_t path_id) {
+    _path_ecns[path_id] = 1;
 }
 
 void
@@ -647,6 +686,45 @@ STrackSrc::permute_paths() {
         _paths[len-1-i] = tmppath;
     }
 }
+
+// generate a new randomized permutation of the integers from 0 to len
+void STrackSrc::permute_sequence(vector<int>& seq) {
+    size_t len = seq.size();
+    for (uint32_t i = 0; i < len; i++) {
+        seq[i] = i;
+    }
+    for (uint32_t i = 0; i < len; i++) {
+        int ix = random() % (len - i);
+        int tmpval = seq[ix];
+        seq[ix] = seq[len-1-i];
+        seq[len-1-i] = tmpval;
+    }
+}
+
+void STrackSrc::set_paths(uint32_t no_of_paths){
+    if(_route_strategy != ECMP_FIB
+       && _route_strategy != ECMP_FIB_ECN
+       && _route_strategy != REACTIVE_ECN){
+        cout << "Set paths (path_count) called with wrong route strategy" <<endl;
+        abort();
+    }
+    cout << " no_of_paths " << no_of_paths << endl;
+
+    _path_ids.resize(no_of_paths);
+    permute_sequence(_path_ids);
+    _paths.resize(no_of_paths);
+    _path_ecns.resize(no_of_paths);
+
+    for (size_t i=0; i < no_of_paths; i++){
+        _paths[i] = NULL;
+        _path_ecns[i] = 0;
+
+    }
+    _crt_path = 0;
+}
+
+
+
 
 void 
 STrackSrc::startflow() {
@@ -678,7 +756,7 @@ STrackSrc::connect(const Route& routeout, const Route& routeback, STrackSink& si
     cloned_rt->push_back(&sink);
     _route = cloned_rt;
     _flow.set_id(get_id()); // identify the packet flow with the source that generated it
-    cout << "connect, src " << get_id() << " flow id is now " << _flow.get_id()  << endl;
+    cout << "connect, src " << get_id() << " flow id is now " << _flow.get_id()  <<" flow_id " << flow_id() <<  endl;
     _scheduler->add_src(_flow.flow_id(), this);
     _rtx_timer_scanner->registerSrc(*this);
     _sink=&sink;
@@ -804,13 +882,14 @@ STrackSink::receivePacket(Packet& pkt) {
     STrackPacket *p = (STrackPacket*)(&pkt);
     STrackPacket::seq_t seqno = p->seqno();
     simtime_picosec ts = p->ts();
-    if((p->flow_id() & 0xff) == 0){
+    if((p->flow_id() & 0xff) == 24){
         cout << "receivePacket seq " << seqno << endl;
     }
     int size = p->size(); // TODO: the following code assumes all packets are the same size
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_RCVDESTROY);
 
     bool marked = (p->flags()&ECN_CE) != 0; // ECN for load balancing
+    int32_t path_id = p->pathid();
 
     if (seqno == _cumulative_ack+1) { // it's the next expected seq no
         _cumulative_ack = seqno + size - 1;
@@ -853,13 +932,15 @@ STrackSink::receivePacket(Packet& pkt) {
 
     // whatever the cumulative ack does (eg filling holes), the echoed TS is always from
     // the packet we just received
-    send_ack(ts, marked);
+    send_ack(ts, marked, path_id);
 }
 
 void 
-STrackSink::send_ack(simtime_picosec ts, bool ecn_marked) {
+STrackSink::send_ack(simtime_picosec ts, bool ecn_marked, int32_t path_id) {
     STrackAck *ack = STrackAck::newpkt(_src->flow(), *_route, 0, _cumulative_ack, ts, _srcaddr);
         // set ECN echo only if that is selected strategy
+    ack->set_pathid(0);
+    ack->set_pathid_echo(path_id);
     ack->set_ecn_echo(ecn_marked &&
                       (_route_strategy == ECMP_FIB_ECN ||
                        _route_strategy == REACTIVE_ECN));

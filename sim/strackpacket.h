@@ -68,6 +68,7 @@ public:
         p->_ecn_echo = false;
         p->_direction = NONE;
         p->set_dst(destination);
+        p->_is_header = true;
         return p;
     }
 
@@ -78,6 +79,8 @@ public:
 
     int32_t  path_id() const {return _path_id;}
     inline void set_ecn_echo(bool ecn_echo) {_ecn_echo = ecn_echo;}
+    inline void set_pathid_echo(int32_t pathid_echo) {_pathid_echo = pathid_echo;}
+    inline int32_t pathid_echo() {return _pathid_echo;}
     inline bool ecn_echo() const {return _ecn_echo;}
 
     virtual ~STrackAck(){}
@@ -89,6 +92,7 @@ protected:
     int32_t _path_id; //see comment in NdpPull
     simtime_picosec _ts_echo;
     bool _ecn_echo;
+    int32_t _pathid_echo;
     static PacketDB<STrackAck> _packetdb;
 };
 
