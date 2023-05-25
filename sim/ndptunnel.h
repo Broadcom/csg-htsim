@@ -3,7 +3,7 @@
 
 #ifndef NDP_H
 #define NDP_H
-enum RouteStrategy {NOT_SET, SINGLE_PATH, SCATTER_PERMUTE, SCATTER_RANDOM, PULL_BASED};
+//enum RouteStrategy {NOT_SET, SINGLE_PATH, SCATTER_PERMUTE, SCATTER_RANDOM, PULL_BASED};
 
 #endif
 

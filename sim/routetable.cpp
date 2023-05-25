@@ -14,12 +14,13 @@ void RouteTable::addRoute(int destination, Route* port, int cost, packet_directi
     _fib[destination]->push_back(new FibEntry(port,cost,direction));
 }
 
-void RouteTable::addHostRoute(int destination, Route* port, int flowid){  
+void RouteTable::addHostRoute(int destination, Route* port, flowid_t flowid){  
     if (_hostfib.find(destination) == _hostfib.end())
         _hostfib[destination] = new unordered_map<int, HostFibEntry*>(); 
     
     assert(port!=NULL);
 
+    cout << " destination " << destination << " flow_id " << flowid << endl;
     (*_hostfib[destination])[flowid] = new HostFibEntry(port,flowid);
 }
 
@@ -31,7 +32,7 @@ vector<FibEntry*>* RouteTable::getRoutes(int destination){
         return _fib[destination];
 }
 
-HostFibEntry* RouteTable::getHostRoute(int destination,int flowid){
+HostFibEntry* RouteTable::getHostRoute(int destination,flowid_t flowid){
     if (_hostfib.find(destination) == _hostfib.end() ||
         _hostfib[destination]->find(flowid) == _hostfib[destination]->end())
         return NULL;

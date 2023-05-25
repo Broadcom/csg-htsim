@@ -55,12 +55,13 @@ class CompositeQueue : public Queue {
     int _num_pulls;
     int _num_stripped; // count of packets we stripped
     int _num_bounced;  // count of packets we bounced
+    int _queue_id;
 
  protected:
     // Mechanism
     void beginService(); // start serving the item at the head of the queue
     void completeService(); // wrap up serving the item at the head of the queue
-    bool decide_ECN();
+    bool decide_ECN(mem_b queue_size);
 
     int _serv;
     int _ratio_high, _ratio_low, _crt;

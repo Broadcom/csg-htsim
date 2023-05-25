@@ -8,6 +8,9 @@
 #include "loggertypes.h"
 #include "route.h"
 
+
+enum RouteStrategy {NOT_SET, SINGLE_PATH, SCATTER_PERMUTE, SCATTER_RANDOM, PULL_BASED, SCATTER_ECMP, ECMP_FIB, ECMP_FIB_ECN, REACTIVE_ECN};
+
 class Packet;
 class PacketFlow;
 class PacketSink;
@@ -101,6 +104,10 @@ class Packet {
     inline uint32_t flow_id() const {return _flow->flow_id();}
     inline uint32_t dst() const {return _dst;}
     inline void set_dst(uint32_t dst) { _dst = dst;}
+
+    inline uint32_t src() const {return _src;}
+    inline void set_src(uint32_t src) { _src = src;}
+
     inline uint32_t pathid() {return _pathid;}
 
     inline void set_pathid(uint32_t p) { _pathid = p;}
@@ -163,6 +170,7 @@ class Packet {
     uint32_t _flags; // used for ECN & friends
 
     uint32_t _dst; //used for packets that do not have a route in switched networks.    
+    uint32_t _src; //used for packets that do not have a route in switched networks.    
     uint32_t _pathid;  //used for ECMP hashing.
     packet_direction _direction; //used to avoid loop in FatTrees.   
 

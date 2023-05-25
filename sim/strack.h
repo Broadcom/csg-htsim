@@ -53,8 +53,8 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     //void update_dsn_ack(STrackAck::seq_t ds_ackno);
 
     void set_flowsize(uint64_t flow_size_in_bytes) {
-        _flow_size = flow_size_in_bytes + mss();
-        cout << "Setting flow size to " << _flow_size << endl;
+        _flow_size = flow_size_in_bytes; // + mss();
+        cout << "Setting flow size to " << _flow_size << " input_size " << flow_size_in_bytes << endl;
     }
 
     void set_stoptime(simtime_picosec stop_time) {
@@ -70,21 +70,24 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     void set_hdiv(double hdiv);
 
     void set_dst(uint32_t dst) {_dstaddr = dst;}
+    void set_src(uint32_t src) {_srcaddr = src;}
 
     // void set_paths(vector<const Route*>* rt);
     void set_paths(uint32_t no_of_paths);
 
-    void permute_paths();
+    // void permute_paths();
 
     // should really be private, but loggers want to see:
     uint64_t _flow_size;
     simtime_picosec _stop_time;
+    simtime_picosec _starttime;
     bool _stopped;
     uint32_t _maxcwnd;
     uint32_t _strack_cwnd;  // congestion window controlled by strack algorithm
     int32_t _app_limited;
     uint64_t _highest_sent;  //seqno is in bytes
     uint64_t _last_acked; // ack number of the last packet we received a cumulative ack for
+    uint64_t _total_bytes_acked;
     simtime_picosec _RFC2988_RTO_timeout;
 
     // stuff needed for reno-like fast recovery
@@ -149,11 +152,12 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     inline flowid_t flow_id() const { return _flow.flow_id();}
     int choose_route();
     void permute_sequence(vector<int>& seq);
-    void count_ecn(int32_t path_id);
+    void count_ecn(int32_t path_id, int skip_rounds);
 
     static RouteStrategy _route_strategy;
     static uint32_t _path_entropy_size; // now many paths do we include in our path set
     uint32_t _dstaddr;
+    uint32_t _srcaddr;
     uint16_t _crt_path;
     vector<int> _path_ids;
     vector<uint16_t> _path_ecns; //keeps path scores
@@ -219,7 +223,6 @@ class STrackSink : public PacketSink, public DataReceiver {
     friend class STrackSrc;
  public:
     STrackSink();
-
     void add_buffer_logger(ReorderBufferLogger *logger) {
         _buffer_logger = logger;
     }
@@ -241,8 +244,17 @@ class STrackSink : public PacketSink, public DataReceiver {
     static void setRouteStrategy(RouteStrategy strat) {_route_strategy = strat;}
 
     void set_src(uint32_t s) { _srcaddr = s; }
+    void set_dst(uint32_t d) { _dstaddr = d; }
     uint32_t _srcaddr;
+    uint32_t _dstaddr;
 
+    void set_paths(uint32_t no_of_paths);
+
+    // void permute_paths();
+    uint16_t _crt_path; // index into paths
+    uint16_t _crt_direction;
+    vector<int> _path_ids; // path IDs to be used for ECMP FIB. 
+    vector<const Route*> _paths; //paths in current permutation order
  private:
     // Connectivity
     void connect(STrackSrc& src, const Route& route);

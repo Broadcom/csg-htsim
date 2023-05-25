@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include "ecn.h"
-
+static int global_queue_id = 0;
 CompositeQueue::CompositeQueue(linkspeed_bps bitrate, mem_b maxsize, EventList& eventlist, 
                                QueueLogger* logger)
     : Queue(bitrate, maxsize, eventlist, logger)
@@ -28,25 +28,26 @@ CompositeQueue::CompositeQueue(linkspeed_bps bitrate, mem_b maxsize, EventList& 
     stringstream ss;
     ss << "compqueue(" << bitrate/1000000 << "Mb/s," << maxsize << "bytes)";
     _nodename = ss.str();
+    _queue_id = global_queue_id++;
 }
 
 void CompositeQueue::beginService(){
-    if (!_enqueued_high.empty()&&!_enqueued_low.empty()){
-        _crt++;
+    // if (!_enqueued_high.empty()&&!_enqueued_low.empty()){
+    //     _crt++;
 
-        if (_crt >= (_ratio_high+_ratio_low))
-            _crt = 0;
+    //     if (_crt >= (_ratio_high+_ratio_low))
+    //         _crt = 0;
 
-        if (_crt< _ratio_high){
-            _serv = QUEUE_HIGH;
-            eventlist().sourceIsPendingRel(*this, drainTime(_enqueued_high.back()));
-        } else {
-            assert(_crt < _ratio_high+_ratio_low);
-            _serv = QUEUE_LOW;
-            eventlist().sourceIsPendingRel(*this, drainTime(_enqueued_low.back()));      
-        }
-        return;
-    }
+    //     if (_crt< _ratio_high){
+    //         _serv = QUEUE_HIGH;
+    //         eventlist().sourceIsPendingRel(*this, drainTime(_enqueued_high.back()));
+    //     } else {
+    //         assert(_crt < _ratio_high+_ratio_low);
+    //         _serv = QUEUE_LOW;
+    //         eventlist().sourceIsPendingRel(*this, drainTime(_enqueued_low.back()));      
+    //     }
+    //     return;
+    // }
 
     if (!_enqueued_high.empty()){
         _serv = QUEUE_HIGH;
@@ -59,14 +60,27 @@ void CompositeQueue::beginService(){
         assert(0);
         _serv = QUEUE_INVALID;
     }
+
+    if (_serv==QUEUE_LOW){
+        Packet* pkt = _enqueued_low.back();        
+        //ECN mark on deque
+        if (decide_ECN(_queuesize_low - pkt->size())) {
+                // std::cout <<"queue_ecn path "<<  pkt->pathid() << " src " << pkt->src() << " dst " << pkt->dst() ;
+                // cout << " _queuesize_low " << _queuesize_low - pkt->size() << " _ecn_maxthresh " << _ecn_maxthresh << " _id " << _queue_id;
+                // cout << " now " << eventlist().now() << endl;
+                //<<" size " << pkt->size() << " remotePoint " << getRemoteEndpoint()->nodename()
+            pkt->set_flags(pkt->flags() | ECN_CE);
+        }
+    }
 }
 
-bool CompositeQueue::decide_ECN() {
+bool CompositeQueue::decide_ECN(mem_b queue_size) {
     //ECN mark on deque
-    if (_queuesize_low > _ecn_maxthresh) {
+    if (queue_size > _ecn_maxthresh) {
         return true;
-    } else if (_queuesize_low > _ecn_minthresh) {
-        uint64_t p = (0x7FFFFFFF * (_queuesize_low - _ecn_minthresh))/(_ecn_maxthresh - _ecn_minthresh);
+    } 
+    else if (queue_size > _ecn_minthresh) {
+        uint64_t p = (0x7FFFFFFF * (queue_size - _ecn_minthresh))/(_ecn_maxthresh - _ecn_minthresh);
         if ((uint64_t)random() < p) {
             return true;
         }
@@ -77,15 +91,11 @@ bool CompositeQueue::decide_ECN() {
 void
 CompositeQueue::completeService(){
     Packet* pkt;
+
     if (_serv==QUEUE_LOW){
         assert(!_enqueued_low.empty());
         pkt = _enqueued_low.pop();
         _queuesize_low -= pkt->size();
-
-        //ECN mark on deque
-        if (decide_ECN()) {
-            pkt->set_flags(pkt->flags() | ECN_CE);
-        }
     
         if (_logger) _logger->logQueue(*this, QueueLogger::PKT_SERVICE, *pkt);
         _num_packets++;
@@ -104,9 +114,9 @@ CompositeQueue::completeService(){
             //cout << "Hdr: type=" << pkt->type() << endl;
             _num_headers++;
             //ECN mark on deque of a header, if low priority queue is still over threshold
-            if (decide_ECN()) {
-                pkt->set_flags(pkt->flags() | ECN_CE);
-            }
+            // if (decide_ECN()) {
+            //     pkt->set_flags(pkt->flags() | ECN_CE);
+            // }
         }
     } else {
         assert(0);
@@ -138,13 +148,13 @@ CompositeQueue::receivePacket(Packet& pkt)
 
     //is this a Tofino packet from the egress pipeline?
     if (!pkt.header_only()){
-        if (_queuesize_low+pkt.size() <= _maxsize  || drand()<0.5) {
+        if (_queuesize_low+pkt.size() <= _maxsize  ) {   //|| drand()<0.5
             //regular packet; don't drop the arriving packet
 
             // we are here because either the queue isn't full or,
             // it might be full and we randomly chose an
             // enqueued packet to trim
-            
+#if 0   
             if (_queuesize_low+pkt.size()>_maxsize){
                 // we're going to drop an existing packet from the queue
                 if (_enqueued_low.empty()){
@@ -197,7 +207,7 @@ CompositeQueue::receivePacket(Packet& pkt)
                     if (_logger) _logger->logQueue(*this, QueueLogger::PKT_ENQUEUE, *booted_pkt);
                 }
             }
-
+#endif
             assert(_queuesize_low+pkt.size()<= _maxsize);
             Packet* pkt_p = &pkt;
             _enqueued_low.push(pkt_p);
@@ -213,7 +223,7 @@ CompositeQueue::receivePacket(Packet& pkt)
             return;
         } else {
             //strip packet the arriving packet - low priority queue is full
-            //cout << "B [ " << _enqueued_low.size() << " " << _enqueued_high.size() << " ] STRIP" << endl;
+            cout << "B [ " << _enqueued_low.size() << " " << _enqueued_high.size() << " ] STRIP" << endl;
             pkt.strip_payload();
             _num_stripped++;
             pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_TRIM);

@@ -4,6 +4,7 @@
 #include "queue.h"
 #include "ndppacket.h"
 #include "queue_lossless.h"
+#include "strackpacket.h"
 
 simtime_picosec BaseQueue::_update_period = timeFromUs(0.1);
 
@@ -426,6 +427,7 @@ FairPriorityQueue::getPriority(Packet& pkt) {
     case NDPLITERTS:
     case NDPLITEPULL:
     case SWIFTACK:
+    case STRACKACK:
     case ROCEACK:
     case ROCENACK:
     case HPCCNACK:
@@ -448,6 +450,7 @@ FairPriorityQueue::getPriority(Packet& pkt) {
     case IP:
     case NDPLITE:
     case SWIFT:
+    case STRACK:
     case ROCE:
     case HPCC:
         prio = Q_LO;
@@ -507,7 +510,7 @@ FairPriorityQueue::receivePacket(Packet& pkt)
 
         //must send the packets to all sources on the same host!
         for (uint32_t i = 0;i<_senders.size();i++){
-            //cout << "Sending pause" << endl;
+            cout << "Sending pause" << endl;
             EthPausePacket* e = EthPausePacket::newpkt(p->sleepTime(),p->senderID());
             _senders[i]->receivePacket(*e);
         }

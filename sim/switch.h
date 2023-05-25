@@ -33,7 +33,7 @@ class Switch : public EventSource, public Drawable, public PacketSink {
     Switch(EventList& eventlist, string s) : EventSource(eventlist, s) { _name= s; _id = id++;}
 
     virtual int addPort(BaseQueue* q);
-    virtual void addHostPort(int addr, int flowid, PacketSink* transport) { abort();};
+    virtual void addHostPort(int addr, flowid_t flowid, PacketSink* transport) { abort();};
 
     uint32_t getID(){return _id;};
     virtual uint32_t getType() {return 0;}

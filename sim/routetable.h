@@ -43,10 +43,10 @@ class RouteTable {
 public:
     RouteTable() {};
     void addRoute(int destination, Route* port, int cost, packet_direction direction);  
-    void addHostRoute(int destination, Route* port, int flowid);  
+    void addHostRoute(int destination, Route* port, flowid_t flowid);  
     void setRoutes(int destination, vector<FibEntry*>* routes);  
     vector <FibEntry*>* getRoutes(int destination);
-    HostFibEntry* getHostRoute(int destination, int flowid);
+    HostFibEntry* getHostRoute(int destination, flowid_t flowid);
     
 private:
     unordered_map<int,vector<FibEntry*>* > _fib;

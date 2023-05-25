@@ -43,7 +43,7 @@ void FatTreeSwitch::receivePacket(Packet& pkt){
         //set next hop which is peer switch.
         pkt.set_route(*nh);
 
-        //emulate the switching latency between ingress and packet arriving at the egress queue.
+        //emulate the switching latency between ingress and packet arriving at the egress queue.gg
         _pipe->receivePacket(pkt); 
     }
     else {
@@ -55,11 +55,13 @@ void FatTreeSwitch::receivePacket(Packet& pkt){
     }
 };
 
-void FatTreeSwitch::addHostPort(int addr, int flowid, PacketSink* transport){
+void FatTreeSwitch::addHostPort(int addr, flowid_t flowid, PacketSink* transport){
     Route* rt = new Route();
     rt->push_back(_ft->queues_nlp_ns[_ft->HOST_POD_SWITCH(addr)][addr]);
     rt->push_back(_ft->pipes_nlp_ns[_ft->HOST_POD_SWITCH(addr)][addr]);
     rt->push_back(transport);
+    cout << "FatTreeSwitch::addHostPort  destination " << addr << " flow_id " << flowid << endl;
+
     _fib->addHostRoute(addr,rt,flowid);
 }
 
@@ -256,15 +258,15 @@ int8_t FatTreeSwitch::compare_pb(FibEntry* left, FibEntry* right){
     return compare_bandwidth(left,right);
 }
 
-void FatTreeSwitch::permute_paths(vector<FibEntry *>* uproutes) {
-    int len = uproutes->size();
-    for (int i = 0; i < len; i++) {
-        int ix = random() % (len - i);
-        FibEntry* tmppath = (*uproutes)[ix];
-        (*uproutes)[ix] = (*uproutes)[len-1-i];
-        (*uproutes)[len-1-i] = tmppath;
-    }
-}
+// void FatTreeSwitch::permute_paths(vector<FibEntry *>* uproutes) {
+//     int len = uproutes->size();
+//     for (int i = 0; i < len; i++) {
+//         int ix = random() % (len - i);
+//         FibEntry* tmppath = (*uproutes)[ix];
+//         (*uproutes)[ix] = (*uproutes)[len-1-i];
+//         (*uproutes)[len-1-i] = tmppath;
+//     }
+// }
 
 FatTreeSwitch::routing_strategy FatTreeSwitch::_strategy = FatTreeSwitch::NIX;
 uint16_t FatTreeSwitch::_ar_fraction = 0;
@@ -285,7 +287,7 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
             case NIX:
                 abort();
             case ECMP:
-                ecmp_choice = freeBSDHash(pkt.flow_id(),pkt.pathid(),_hash_salt) % available_hops->size();
+                ecmp_choice = freeBSDHash(pkt.flow_id(),pkt.pathid(),_hash_salt) % available_hops->size();                
                 break;
             case ADAPTIVE_ROUTING:
                 if (_ar_sticky==FatTreeSwitch::PER_PACKET){
@@ -329,7 +331,7 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
             case RR:
                 if (_crt_route>=5 * available_hops->size()){
                     _crt_route = 0;
-                    permute_paths(available_hops);
+                    // permute_paths(available_hops);
                 }
                 ecmp_choice = _crt_route % available_hops->size();
                 _crt_route ++;
@@ -338,7 +340,7 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
                 if (_type == TOR){
                     if (_crt_route>=5 * available_hops->size()){
                         _crt_route = 0;
-                        permute_paths(available_hops);
+                        // permute_paths(available_hops);
                     }
                     ecmp_choice = _crt_route % available_hops->size();
                     _crt_route ++;
@@ -346,8 +348,7 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
                 else ecmp_choice = freeBSDHash(pkt.flow_id(),pkt.pathid(),_hash_salt) % available_hops->size();
                 
                 break;
-            }
-        
+            }    
         FibEntry* e = (*available_hops)[ecmp_choice];
         pkt.set_direction(e->getDirection());
         
@@ -392,7 +393,8 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
                     */
                 }
                 _uproutes = _fib->getRoutes(pkt.dst());
-                permute_paths(_uproutes);
+                //yanfang: remove permutate_paths 
+                // permute_paths(_uproutes);
             }
         }
     } else if (_type == AGG) {
@@ -440,7 +442,7 @@ Route* FatTreeSwitch::getNextHop(Packet& pkt, BaseQueue* ingress_port){
                     //cout << "AGG switch " << _id << " adding route to " << pkt.dst() << " via CORE " << k << endl;
                 }
                 //_uproutes = _fib->getRoutes(pkt.dst());
-                permute_paths(_fib->getRoutes(pkt.dst()));
+                // permute_paths(_fib->getRoutes(pkt.dst()));
             }
         }
     } else if (_type == CORE) {

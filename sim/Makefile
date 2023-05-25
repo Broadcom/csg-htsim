@@ -5,7 +5,7 @@ HDRS=network.h ndp.h ndptunnel.h queue_lossless.h queue_lossless_input.h queue_l
 CC=g++
 CFLAGS = -Wall -std=c++11 -g -Wsign-compare -Wuninitialized
 #CFLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
-CFLAGS += -O2
+CFLAGS += -O3
 
 all:	libhtsim.a parse_output $(SUBDIRS)
 

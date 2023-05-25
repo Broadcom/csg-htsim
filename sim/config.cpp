@@ -59,6 +59,11 @@ double timeAsUs(simtime_picosec ps) {
     return us_;
 }
 
+double timeAsNs(simtime_picosec ps) {
+    double ns_ = (double)(ps / 1000.0);
+    return ns_;
+}
+
 double timeAsSec(simtime_picosec ps) {
     double s_ = (double)ps / 1000000000000.0;
     return s_;

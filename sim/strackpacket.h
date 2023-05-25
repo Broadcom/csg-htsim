@@ -11,22 +11,24 @@
 // They incorporate a packet database, to reuse packet objects that are no longer needed.
 // Note: you never construct a new STrackPacket or STrackAck directly; 
 // rather you use the static method newpkt() which knows to reuse old packets from the database.
-#define ACKSIZE 40
-
+// #define ACKSIZE 40
+#define PKTOVERHEAD 46
 class STrackPacket : public Packet {
 public:
     typedef uint64_t seq_t;
 
     inline static STrackPacket* newpkt(PacketFlow &flow, const Route &route, 
                                        seq_t seqno, int size,
-                                       uint32_t destination = UINT32_MAX) {
+                                       uint32_t destination = UINT32_MAX,
+                                       uint32_t source = UINT32_MAX) {
         STrackPacket* p = _packetdb.allocPacket();
-        p->set_route(flow,route,size,seqno+size-1); // The STrack sequence number is the first byte of the packet; I will ID the packet by its last byte.
+        p->set_route(flow,route,size+PKTOVERHEAD,seqno+size-1); // The STrack sequence number is the first byte of the packet; I will ID the packet by its last byte.
         p->_type = STRACK;
         p->_seqno = seqno;
         p->_syn = false;
         p->_direction = NONE;
         p->set_dst(destination);
+        p->set_src(source);
         return p;
     }
 
@@ -56,9 +58,10 @@ public:
     inline static STrackAck* newpkt(PacketFlow &flow, const Route &route, 
                                     seq_t seqno, seq_t ackno, 
                                     simtime_picosec ts_echo,
-                                    uint32_t destination = UINT32_MAX) {
+                                    uint32_t destination = UINT32_MAX,
+                                    uint32_t source = UINT32_MAX) {
         STrackAck* p = _packetdb.allocPacket();
-        p->set_route(flow,route,ACKSIZE,ackno);
+        p->set_route(flow,route,STRACKACKSIZE,ackno);
         p->_type = STRACKACK;
         p->_seqno = seqno;
         p->_ackno = ackno;
@@ -68,6 +71,7 @@ public:
         p->_ecn_echo = false;
         p->_direction = NONE;
         p->set_dst(destination);
+        p->set_src(source);
         p->_is_header = true;
         return p;
     }
@@ -84,7 +88,7 @@ public:
     inline bool ecn_echo() const {return _ecn_echo;}
 
     virtual ~STrackAck(){}
-    // const static int ACKSIZE=40;
+    const static int STRACKACKSIZE=64;
 protected:
     seq_t _seqno;
     seq_t _ackno;

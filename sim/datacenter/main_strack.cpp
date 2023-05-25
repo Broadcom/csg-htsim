@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
     Clock c(timeFromSec(5 / 100.), eventlist);
     mem_b queuesize = DEFAULT_QUEUE_SIZE;
     linkspeed_bps linkspeed = speedFromMbps((double)HOST_NIC);
-    int packet_size = 9000;
+    int packet_size = 4000;
     uint32_t path_entropy_size = 10000000;
     uint32_t no_of_conns = 0, cwnd = 15, no_of_nodes = DEFAULT_NODES;
     uint32_t tiers = 3; // we support 2 and 3 tier fattrees
@@ -475,13 +475,14 @@ int main(int argc, char **argv) {
     }
 #ifdef FAT_TREE
     FatTreeTopology::set_tiers(tiers);
-    // FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 
-    //                                            &eventlist, NULL, qt, hop_latency,
-    //                                            switch_latency,
-    //                                            snd_type);
-    FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, 
-                                               NULL, &eventlist, NULL, qt, SWIFT_SCHEDULER, 0,
-                                               cwnd*Packet::data_packet_size());
+    FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 
+                                               &eventlist, NULL, qt, hop_latency,
+                                               switch_latency,
+                                               cwnd*Packet::data_packet_size(),
+                                               snd_type);
+    // FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, 
+    //                                            NULL, &eventlist, NULL, qt, SWIFT_SCHEDULER, 0,
+    //                                            cwnd*Packet::data_packet_size());
 #endif
 
 #ifdef OV_FAT_TREE
@@ -547,6 +548,7 @@ int main(int argc, char **argv) {
         exit(-1);
     }
     
+    cout << " Loading connection matrix done" << endl;
     //handle link failures specified in the connection matrix.
     for (size_t c = 0; c < conns->failures.size(); c++){
         failure* crt = conns->failures.at(c);
@@ -598,18 +600,22 @@ int main(int argc, char **argv) {
         cout << "Connection " << crt->src << "->" <<crt->dst << " starting at " << crt->start << " size " << crt->size << " total_phy_paths " << net_paths[src][dest]->size() << endl;
 
         strackSrc = new STrackSrc(strackRtxScanner, NULL,NULL,eventlist);
+                // cout << "dada" << endl;
         strackSrc->set_cwnd(cwnd*Packet::data_packet_size());
         strackSrc->set_base_rtt(RTT1);
         strackSrc->set_dst(dest);
+        strackSrc->set_src(src);
         strackSrc->setName("STRACK"+ntoa(c)); logfile.writeName(*strackSrc);
 
         if (crt->size>0){
+            cout << " set flow size " << crt->size << endl;
             strackSrc->set_flowsize(crt->size);
         }
 
         strackSnk = new STrackSink();
         strackSnk->setName("STRACKSink"+ntoa(c)); logfile.writeName(*strackSnk);
         strackSnk->set_src(src);
+        strackSnk->set_dst(dest);
         // int choice = rand()%net_paths[src][dest]->size();
         // routeout = new Route(*(net_paths[src][dest]->at(choice)));
 
@@ -649,13 +655,13 @@ int main(int argc, char **argv) {
 
                 strackSrc->connect(*srctotor, *dsttotor, *strackSnk, crt->start);
                 strackSrc->set_paths(path_entropy_size);
-                // strackSnk->set_paths(path_entropy_size);
+                strackSnk->set_paths(path_entropy_size);
 
                 //register src and snk to receive packets from their respective TORs. 
                 assert(top->switches_lp[top->HOST_POD_SWITCH(src)]);
                 assert(top->switches_lp[top->HOST_POD_SWITCH(dest)]);
-                top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src,(int)strackSrc->flow_id(),strackSrc);
-                top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest,(int)strackSrc->flow_id(),strackSnk);
+                top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src,strackSrc->flow_id(),strackSrc);
+                top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest,strackSrc->flow_id(),strackSnk);
                 break;
             }
         case SINGLE_PATH:

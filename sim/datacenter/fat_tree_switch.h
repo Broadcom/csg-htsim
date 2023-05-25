@@ -70,6 +70,20 @@ static inline uint32_t freeBSDHash(uint32_t target1, uint32_t target2 = 0, uint3
     return c;
 }
 
+// static inline uint32_t hashLookup(uint64_t key) {
+//     uint64_t h;
+//     std::unordered_map<uint64_t, uint64_t>::iterator it;
+//     if ((it = hashmap.find(key)) != hashmap.end()) {
+//         h = it->second;
+//     } else {
+//         const uint64_t *p = &key;
+//         h = MurmurHash64A(p, sizeof(key), switchseed);
+//         hashmap.insert(std::make_pair(key, h));
+//     }
+
+//     return h;
+// }
+
 #undef MIX
 
 class FlowletInfo {
@@ -115,9 +129,9 @@ public:
 
     static int8_t (*fn)(FibEntry*,FibEntry*);
 
-    virtual void addHostPort(int addr, int flowid, PacketSink* transport);
+    virtual void addHostPort(int addr, flowid_t flowid, PacketSink* transport);
 
-    virtual void permute_paths(vector<FibEntry*>* uproutes);
+    // virtual void permute_paths(vector<FibEntry*>* uproutes);
 
     static void set_strategy(routing_strategy s) { assert (_strategy==NIX); _strategy = s; }
     static void set_ar_fraction(uint16_t f) { assert(f>=1);_ar_fraction = f;} 

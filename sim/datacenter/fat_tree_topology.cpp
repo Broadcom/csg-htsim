@@ -23,10 +23,12 @@ string itoa(uint64_t n);
 uint32_t FatTreeTopology::_tiers = 3;
 
 //extern int N;
-
 FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
                                  QueueLoggerFactory* logger_factory,
-                                 EventList* ev,FirstFit * fit,queue_type q, simtime_picosec latency, simtime_picosec switch_latency, queue_type snd){
+                                 EventList* ev,FirstFit * fit,queue_type q, simtime_picosec latency, simtime_picosec switch_latency, 
+                                 uint32_t bdp, queue_type snd
+                                 ){
+    _bdp = bdp;
     _linkspeed = linkspeed;
     _queuesize = queuesize;
     _logger_factory = logger_factory;
@@ -37,6 +39,28 @@ FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, 
     failed_links = 0;
     _hop_latency = latency;
     _switch_latency = switch_latency;
+
+    cout << "Fat Tree topology with " << timeAsUs(_hop_latency) << "us links and " << timeAsUs(_switch_latency) <<"us switching latency." <<endl;
+    set_params(no_of_nodes);
+
+    init_network();
+}
+FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+                                 QueueLoggerFactory* logger_factory,
+                                 EventList* ev,FirstFit * fit,queue_type q, simtime_picosec latency, simtime_picosec switch_latency, 
+                                 queue_type snd
+                                 ){
+    _linkspeed = linkspeed;
+    _queuesize = queuesize;
+    _logger_factory = logger_factory;
+    _eventlist = ev;
+    ff = fit;
+    _qt = q;
+    _sender_qt = snd;
+    failed_links = 0;
+    _hop_latency = latency;
+    _switch_latency = switch_latency;
+
 
     cout << "Fat Tree topology with " << timeAsUs(_hop_latency) << "us links and " << timeAsUs(_switch_latency) <<"us switching latency." <<endl;
     set_params(no_of_nodes);
@@ -66,7 +90,8 @@ FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, 
 
 FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
                                  QueueLoggerFactory* logger_factory,
-                                 EventList* ev,FirstFit * fit, queue_type q, uint32_t num_failed){
+                                 EventList* ev,FirstFit * fit, queue_type q, 
+                                 uint32_t num_failed){
     _linkspeed = linkspeed;
     _queuesize = queuesize;
     _hop_latency = timeFromUs((uint32_t)1); 
@@ -109,6 +134,29 @@ FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, 
     init_network();
 }
 
+FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+                                 QueueLoggerFactory* logger_factory,
+                                 EventList* ev,FirstFit * fit, queue_type qtype,
+                                 queue_type sender_qtype, uint32_t num_failed, uint32_t bdp){
+    _linkspeed = linkspeed;
+    _queuesize = queuesize;
+    _hop_latency = timeFromUs((uint32_t)1); 
+    _switch_latency = timeFromUs((uint32_t)0); 
+    _logger_factory = logger_factory;
+    _qt = qtype;
+    _sender_qt = sender_qtype;
+
+    _bdp = bdp;
+    _eventlist = ev;
+    ff = fit;
+
+    failed_links = num_failed;
+
+    cout << "Fat tree topology (4) with " << no_of_nodes << " nodes" << endl;
+    set_params(no_of_nodes);
+
+    init_network();
+}
 
 void FatTreeTopology::set_params(uint32_t no_of_nodes) {
     cout << "Set params " << no_of_nodes << endl;
@@ -232,10 +280,15 @@ FatTreeTopology::alloc_queue(QueueLogger* queueLogger, linkspeed_bps speed, mem_
             return new ECNQueue(speed, memFromPkt(2*SWITCH_BUFFER), *_eventlist, queueLogger, memFromPkt(15));
     case COMPOSITE_ECN_LB:
         {
+            if (_bdp == 0 || _bdp > queuesize ){
+                cerr << "We need BDP to set the ecn mark threshold, now BDP value is " << _bdp << " \n";
+                exit(1);                
+            }
             CompositeQueue* q = new CompositeQueue(speed, queuesize, *_eventlist, queueLogger);
             if (!tor || dir == UPLINK) {
                 // don't use ECN on ToR downlinks
-                q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * queuesize);
+                // q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * _bdp);
+                q->set_ecn_thresholds(24*1000, 96*1000);
             }
             return q;
         }
@@ -279,6 +332,7 @@ void FatTreeTopology::init_network(){
     //create switches if we have lossless operation
     //if (_qt==LOSSLESS)
     // changed to always create switches
+    cout << "total switches: ToR " << NTOR << " NAGG " << NAGG << " NCORE " << NCORE << " srv_per_tor " << K/2 << endl;
     for (uint32_t j=0;j<NTOR;j++){
         switches_lp[j] = new FatTreeSwitch(*_eventlist, "Switch_LowerPod_"+ntoa(j),FatTreeSwitch::TOR,j,_switch_latency,this);
     }
@@ -637,7 +691,7 @@ vector<const Route*>* FatTreeTopology::get_bidir_paths(uint32_t src, uint32_t de
                 routeback->set_reverse(routeout);
             }
       
-            //print_route(*routeout);
+            // print_route(*routeout); 
             paths->push_back(routeout);
             check_non_null(routeout);
         }

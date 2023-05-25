@@ -28,7 +28,6 @@
 #define RECORD_PATH_LENS // used for debugging which paths lengths packets were trimmed on - mostly useful for BCube
 
 #define DEBUG_PATH_STATS
-enum RouteStrategy {NOT_SET, SINGLE_PATH, SCATTER_PERMUTE, SCATTER_RANDOM, PULL_BASED, SCATTER_ECMP, ECMP_FIB, ECMP_FIB_ECN, REACTIVE_ECN};
 
 class NdpSink;
 class NdpRTSPacer;
