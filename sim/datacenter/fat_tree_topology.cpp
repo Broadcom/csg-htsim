@@ -187,7 +187,8 @@ void FatTreeTopology::set_params(uint32_t no_of_nodes) {
         }
         if (_no_of_nodes > no_of_nodes) {
             cerr << "Topology Error: can't have a 2-Tier FatTree with " << no_of_nodes
-                 << " nodes\n";
+                 << "node, the closest is " << _no_of_nodes
+		    << " nodes \n";
             exit(1);
         }
         int NK = K;
