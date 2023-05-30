@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
     uint32_t path_entropy_size = 10000000;
     uint32_t no_of_conns = 0, cwnd = 15, no_of_nodes = DEFAULT_NODES;
     uint32_t tiers = 3; // we support 2 and 3 tier fattrees
-    double logtime = 0.25; // ms;
+    double logtime = 1; //0.25; // ms;
     stringstream filename(ios_base::out);
     simtime_picosec hop_latency = timeFromUs((uint32_t)1);
     simtime_picosec switch_latency = timeFromUs((uint32_t)0);
