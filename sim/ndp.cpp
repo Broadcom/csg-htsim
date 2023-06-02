@@ -337,6 +337,7 @@ void NdpSrc::connect(Route* routeout, Route* routeback, NdpSink& sink, simtime_p
     _flow._name = _name;
     _sink->connect(*this, routeback);
 
+    _starttime = starttime;
     if (starttime != TRIGGER_START) {
         eventlist().sourceIsPending(*this,starttime);
     }
@@ -657,7 +658,10 @@ void NdpSrc::processAck(const NdpAck& ack) {
 
     if (cum_ackno >= _flow_size){
         cout << "Flow " << _name << " flow_id " << flow_id() << " finished at " << timeAsUs(eventlist().now()) << " total bytes " << cum_ackno << endl;
-        if (_end_trigger) {
+        double diff = timeAsNs(eventlist().now() - _starttime);
+        cout << timeAsUs(eventlist().now()) << " src " << _sink->_srcaddr << " dst " << _dstaddr << " flow_id " << flow_id() << " tput: "<< _flow_size*8/(diff) <<" duration " << diff << endl;
+        
+	if (_end_trigger) {
             _end_trigger->activate();
         }
         return;

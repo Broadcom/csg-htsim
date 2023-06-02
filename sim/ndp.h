@@ -62,7 +62,6 @@ class NdpSrc : public PacketSink, public EventSource, public TriggerTarget {
     void set_flowsize(uint64_t flow_size_in_bytes) {
             _flow_size = flow_size_in_bytes;
     }
-
     void set_stoptime(simtime_picosec stop_time) {
         _stop_time = stop_time;
         cout << "Setting stop time to " << timeAsSec(_stop_time) << endl;
@@ -108,6 +107,7 @@ class NdpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint32_t _flight_size;
     uint32_t _acked_packets;
 
+    simtime_picosec _starttime;
     // the following are used with SCATTER_PERMUTE, SCATTER_RANDOM and
     // PULL_BASED route strategies
     uint16_t _crt_path;
