@@ -745,6 +745,7 @@ int main(int argc, char **argv) {
     }
 
     cout << "Done" << endl;
+    cout << "Done" << endl;
     int new_pkts = 0, rtx_pkts = 0, bounce_pkts = 0;
     for (size_t ix = 0; ix < ndp_srcs.size(); ix++) {
         new_pkts += ndp_srcs[ix]->_new_packets_sent;
