@@ -1,0 +1,23 @@
+These experiments are all-to-all simulations that demonstrate unstable
+self-synchronization behaviour.  The network is a 1024-node 3-tier
+fattree.  Ideally we'd run larger, but all-to-all sims are pretty
+expensive even at this scale, and this is large enough to show
+undesirable emergent behaviour.
+
+With 512 node all-to-all, if we run sequential (shift) all-to-all, we
+would hope that each sender sends to one receiver at a time and each
+receiver receives from one sender at a time.  The former is true, but
+the latter turns out to be false.  Some flows get slowed down just
+slightly; the next sender catches up, and now there are two senders to
+that receiver, slowing it further.  The effect can build, and with a
+512-host all-to-all we can see receivers that have 120 senders sending
+to one receiver with many of the other receivers being idle.
+
+- sequential_512conns shows the simple sequential all-to-all
+  behaviour.  We're using src-routed spraying here, because that's
+  nearly ideal for load balancing, but the effect still happens.  We
+  see 120 senders to 1 receiver.
+
+- sequential_512conns_prio is the same experiment, but the NDP
+  receivers prioritize sending credit to senders from earlier rounds,
+  damping out the instability.
