@@ -7,15 +7,14 @@
 #include <iostream>
 #include "main.h"
 
-extern uint32_t RTT;
-
 string ntoa(double n);
 string itoa(uint64_t n);
 
-MultihomedFatTreeTopology::MultihomedFatTreeTopology(Logfile* lg, EventList* ev,FirstFit * fit){
+MultihomedFatTreeTopology::MultihomedFatTreeTopology(Logfile* lg, EventList* ev,FirstFit * fit,simtime_picosec rtt){
     logfile = lg;
     eventlist = ev;
     ff = fit;
+    _rtt = rtt;
   
     _no_of_nodes = K * K * K/3;
 
@@ -62,7 +61,7 @@ void MultihomedFatTreeTopology::init_network(){
             queues_nlp_ns[j][k]->setName("LS_" + ntoa(j) + "-" + "DST_" +ntoa(k));
             logfile->writeName(*(queues_nlp_ns[j][k]));
           
-            pipes_nlp_ns[j][k] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_nlp_ns[j][k] = new Pipe(_rtt, *eventlist);
             pipes_nlp_ns[j][k]->setName("Pipe-nt-ns-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(pipes_nlp_ns[j][k]));
           
@@ -73,7 +72,7 @@ void MultihomedFatTreeTopology::init_network(){
             queues_ns_nlp[k][j]->setName("SRC_" + ntoa(k) + "-" + "LS_"+ntoa(j));
             logfile->writeName(*(queues_ns_nlp[k][j]));
           
-            pipes_ns_nlp[k][j] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_ns_nlp[k][j] = new Pipe(_rtt, *eventlist);
             pipes_ns_nlp[k][j]->setName("Pipe-ns-nt-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_ns_nlp[k][j]));
           
@@ -105,7 +104,7 @@ void MultihomedFatTreeTopology::init_network(){
             queues_nup_nlp[k][j]->setName("US_" + ntoa(k) + "-" + "LS_"+ntoa(j));
             logfile->writeName(*(queues_nup_nlp[k][j]));
         
-            pipes_nup_nlp[k][j] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_nup_nlp[k][j] = new Pipe(_rtt, *eventlist);
             pipes_nup_nlp[k][j]->setName("Pipe-na-nt-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_nup_nlp[k][j]));
         
@@ -116,7 +115,7 @@ void MultihomedFatTreeTopology::init_network(){
             queues_nlp_nup[j][k]->setName("LS_" + ntoa(j) + "-" + "US_"+ntoa(k));
             logfile->writeName(*(queues_nlp_nup[j][k]));
         
-            pipes_nlp_nup[j][k] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_nlp_nup[j][k] = new Pipe(_rtt, *eventlist);
             pipes_nlp_nup[j][k]->setName("Pipe-nt-na-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(pipes_nlp_nup[j][k]));
         
@@ -147,7 +146,7 @@ void MultihomedFatTreeTopology::init_network(){
             queues_nup_nc[j][k]->setName("US_" + ntoa(j) + "-" + "CS_"+ ntoa(k));
             logfile->writeName(*(queues_nup_nc[j][k]));
         
-            pipes_nup_nc[j][k] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_nup_nc[j][k] = new Pipe(_rtt, *eventlist);
             pipes_nup_nc[j][k]->setName("Pipe-nup-nc-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(pipes_nup_nc[j][k]));
         
@@ -165,7 +164,7 @@ void MultihomedFatTreeTopology::init_network(){
 
             logfile->writeName(*(queues_nc_nup[k][j]));
         
-            pipes_nc_nup[k][j] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_nc_nup[k][j] = new Pipe(_rtt, *eventlist);
             pipes_nc_nup[k][j]->setName("Pipe-nc-nup-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_nc_nup[k][j]));
         

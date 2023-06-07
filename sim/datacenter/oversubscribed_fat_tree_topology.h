@@ -51,7 +51,7 @@ public:
 
     queue_type qt;
   
-    OversubscribedFatTreeTopology(mem_b queuesize, Logfile* log,EventList* ev,FirstFit* f,queue_type q);
+    OversubscribedFatTreeTopology(mem_b queuesize, Logfile* log,EventList* ev,FirstFit* f,queue_type q,simtime_picosec rtt, int n);
 
     void init_network();
     virtual vector<const Route*>* get_bidir_paths(uint32_t src, uint32_t dest, bool reverse);
@@ -71,7 +71,9 @@ private:
     int64_t find_core_switch(Queue* queue);
     int64_t find_destination(Queue* queue);
     uint32_t _no_of_nodes;
+    simtime_picosec _rtt;
     mem_b _queuesize;
+    int _N;
 };
 
 #endif

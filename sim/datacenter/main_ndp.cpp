@@ -37,9 +37,6 @@ uint32_t RTT = 1; // this is per link delay in us; identical RTT microseconds = 
 int DEFAULT_NODES = 432;
 #define DEFAULT_QUEUE_SIZE 15
 
-string ntoa(double n);
-string itoa(uint64_t n);
-
 //#define SWITCH_BUFFER (SERVICE * RTT / 1000)
 #define USE_FIRST_FIT 0
 #define FIRST_FIT_INTERVAL 100
@@ -49,18 +46,6 @@ EventList eventlist;
 void exit_error(char* progr) {
     cout << "Usage " << progr << " [-nodes N]\n\t[-conns C]\n\t[-cwnd cwnd_size]\n\t[-q queue_size]\n\t[-oversubscribed_cc] Use receiver-driven AIMD to reduce total window when trims are not last hop\n\t[-queue_type composite|random|lossless|lossless_input|]\n\t[-tm traffic_matrix_file]\n\t[-strat route_strategy (single,rand,perm,pull,ecmp,\n\tecmp_host path_count,ecmp_ar,ecmp_rr,\n\tecmp_host_ar ar_thresh)]\n\t[-log log_level]\n\t[-seed random_seed]\n\t[-end end_time_in_usec]\n\t[-mtu MTU]\n\t[-hop_latency x] per hop wire latency in us,default 1\n\t[-switch_latency x] switching latency in us, default 0\n\t[-host_queue_type  swift|prio|fair_prio]" << endl;
     exit(1);
-}
-
-void print_path(std::ofstream &paths,const Route* rt){
-    for (size_t i=1;i<rt->size()-1;i++) {
-        BaseQueue* q = dynamic_cast<BaseQueue*>(rt->at(i));
-        if (q!=NULL)
-            paths << "Q:" << q->str() << " ";
-        else 
-            paths << "- ";
-    }
-
-    paths<<endl;
 }
 
 void filter_paths(uint32_t src_id, vector<const Route*>& paths, FatTreeTopology* top) {
@@ -790,14 +775,3 @@ int main(int argc, char **argv) {
         
 }
 
-string ntoa(double n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}
-
-string itoa(uint64_t n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}

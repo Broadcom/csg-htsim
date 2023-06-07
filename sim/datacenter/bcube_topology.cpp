@@ -10,8 +10,6 @@
 #include "compositeprioqueue.h"
 #include "main.h"
 
-extern uint32_t RTT;
-
 string ntoa(double n);
 string itoa(uint64_t n);
 
@@ -22,9 +20,10 @@ void push_front(Route* rt, Queue* q){
 */
 
 BCubeTopology::BCubeTopology(uint32_t no_of_nodes, uint32_t ports_per_switch, uint32_t no_of_levels, 
-                             Logfile* lg, EventList* ev,FirstFit * fit, queue_type qt){
+                             Logfile* lg, EventList* ev,FirstFit * fit, queue_type qt, simtime_picosec rtt){
     set_params(no_of_nodes, ports_per_switch, no_of_levels);
     logfile = lg;
+    _rtt = rtt;
     eventlist = ev;
     ff = fit;
     this->qt = qt;
@@ -205,7 +204,7 @@ void BCubeTopology::init_network(){
             queues_srv_switch(i,j,k)->setName("SRV_" + ntoa(i) + "(level_" + ntoa(k)+"))_SW_" +ntoa(j));
             logfile->writeName(*(queues_srv_switch(i,j,k)));
       
-            pipes_srv_switch(i,j,k) = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_srv_switch(i,j,k) = new Pipe(_rtt, *eventlist);
             pipes_srv_switch(i,j,k)->setName("Pipe-SRV_" + ntoa(i) + "(level_" + ntoa(k)+")-SW_" +ntoa(j));
             logfile->writeName(*(pipes_srv_switch(i,j,k)));
 
@@ -217,7 +216,7 @@ void BCubeTopology::init_network(){
             queues_switch_srv(j,i,k)->setName("SW_" + ntoa(j) + "(level_" + ntoa(k)+")-SRV_" +ntoa(i));
             logfile->writeName(*(queues_switch_srv(j,i,k)));
       
-            pipes_switch_srv(j,i,k) = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_switch_srv(j,i,k) = new Pipe(_rtt, *eventlist);
             pipes_switch_srv(j,i,k)->setName("Pipe-SW_" + ntoa(j) + "(level_" + ntoa(k)+")-SRV_" +ntoa(i));
             logfile->writeName(*(pipes_switch_srv(j,i,k)));
         }

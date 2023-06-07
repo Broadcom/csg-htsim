@@ -15,9 +15,6 @@
 #include "mtcp.h"
 #include "exoqueue.h"
 
-string ntoa(double n);
-string itoa(uint64_t n);
-
 #define CAP 1
 
 // Simulation params
@@ -355,13 +352,3 @@ int main(int argc, char **argv) {
     while (eventlist.doNextEvent()) {}
 }
 
-string ntoa(double n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}
-string itoa(uint64_t n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}

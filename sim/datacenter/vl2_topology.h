@@ -42,7 +42,7 @@ public:
     Logfile* logfile;
     EventList* eventlist;
 
-    VL2Topology(Logfile* log,EventList* ev,FirstFit* f);
+    VL2Topology(Logfile* log,EventList* ev,FirstFit* f,simtime_picosec rtt);
 
     void init_network();
     virtual vector<const Route*>* get_paths(uint32_t src, uint32_t dest);
@@ -50,6 +50,7 @@ public:
     uint32_t no_of_nodes() const {return _no_of_nodes;}
 private:
     uint32_t _no_of_nodes;
+    simtime_picosec _rtt;
 };
 
 #endif

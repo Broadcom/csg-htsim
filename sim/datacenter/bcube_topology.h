@@ -43,7 +43,7 @@ public:
     EventList* eventlist;
   
     BCubeTopology(uint32_t no_of_nodes, uint32_t ports_per_switch, uint32_t no_of_levels, 
-                  Logfile* log,EventList* ev,FirstFit* f, queue_type q);
+                  Logfile* log,EventList* ev,FirstFit* f, queue_type q,simtime_picosec rtt);
 
     void init_network();
     virtual vector<const Route*>* get_paths(uint32_t src, uint32_t dest);
@@ -61,6 +61,7 @@ private:
     queue_type qt;
     map<Queue*,int> _link_usage;
     uint32_t _K, _NUM_PORTS, _NUM_SRV, _NUM_SW;
+    simtime_picosec _rtt;
     void set_params(uint32_t no_of_nodes, uint32_t ports_per_switch, uint32_t no_of_levels);
 
     uint32_t srv_from_address(unsigned int* address);

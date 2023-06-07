@@ -43,9 +43,6 @@ uint32_t DEFAULT_NODES = 16;
 FirstFit* ff = NULL;
 size_t subflow_count = 1;
 
-string ntoa(double n);
-string itoa(uint64_t n);
-
 //#define SWITCH_BUFFER (SERVICE * RTT / 1000)
 #define USE_FIRST_FIT 0
 #define FIRST_FIT_INTERVAL 100
@@ -461,16 +458,3 @@ int main(int argc, char **argv) {
     while (eventlist.doNextEvent()) {
     }
 }
-
-string ntoa(double n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}
-
-string itoa(uint64_t n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}
-

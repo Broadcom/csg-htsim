@@ -33,7 +33,7 @@ public:
     Logfile* logfile;
     EventList* eventlist;
   
-    CamCubeTopology(Logfile* log,EventList* ev,queue_type q);
+    CamCubeTopology(Logfile* log,EventList* ev,queue_type q,simtime_picosec rtt);
 
     void init_network();
     virtual vector<const Route*>* get_paths(int src, int dest);
@@ -48,6 +48,7 @@ public:
 
 private:
     queue_type qt;
+    simtime_picosec _rtt;
 
     int srv_from_address(unsigned int* address);
     void address_from_srv(int srv, unsigned int* address);

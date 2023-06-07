@@ -16,13 +16,8 @@
 #include "swift_scheduler.h"
 #include "ecnqueue.h"
 
-string ntoa(double n);
-string itoa(uint64_t n);
-
 // default to 3-tier topology.  Change this with set_tiers() before calling the constructor.
 uint32_t FatTreeTopology::_tiers = 3;
-
-//extern int N;
 
 FatTreeTopology::FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
                                  QueueLoggerFactory* logger_factory,

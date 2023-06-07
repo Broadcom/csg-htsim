@@ -6,15 +6,14 @@
 #include <iostream>
 #include "main.h"
 
-extern uint32_t RTT;
-
 string ntoa(double n);
 string itoa(uint64_t n);
 
-StarTopology::StarTopology(Logfile* lg, EventList* ev,FirstFit * fit){
+StarTopology::StarTopology(Logfile* lg, EventList* ev,FirstFit * fit,simtime_picosec rtt){
   logfile = lg;
   eventlist = ev;
   ff = fit;
+  _rtt = rtt;
   
   _no_of_nodes = NSRV;
 
@@ -41,7 +40,7 @@ void StarTopology::init_network(){
     queue_in_ns[j]->setName("IN_" + ntoa(j));
     logfile->writeName(*(queue_in_ns[j]));
           
-    pipe_in_ns[j] = new Pipe(timeFromUs(RTT), *eventlist);
+    pipe_in_ns[j] = new Pipe(_rtt, *eventlist);
     pipe_in_ns[j]->setName("Pipe-in-" + ntoa(j));
     logfile->writeName(*(pipe_in_ns[j]));
 
@@ -52,7 +51,7 @@ void StarTopology::init_network(){
     queue_out_ns[j]->setName("OUT_" + ntoa(j));
     logfile->writeName(*(queue_out_ns[j]));
           
-    pipe_out_ns[j] = new Pipe(timeFromUs(RTT), *eventlist);
+    pipe_out_ns[j] = new Pipe(_rtt, *eventlist);
     pipe_out_ns[j]->setName("Pipe-out-" + ntoa(j));
     logfile->writeName(*(pipe_out_ns[j]));
           

@@ -1,7 +1,10 @@
 // -*- c-basic-offset: 4; indent-tabs-mode: nil -*-        
 #include <math.h>
+#include <sstream>
 #include "config.h"
 #include "tcppacket.h"
+#include "route.h"
+#include "queue.h"
 
 double drand() {
     int r=rand();
@@ -106,3 +109,26 @@ mem_pkts memFromPkts(double pkts) {
     return (int)(ceil(pkts));
 }
 
+string ntoa(double n) {
+    std::stringstream s;
+    s << n;
+    return s.str();
+}
+
+string itoa(uint64_t n) {
+    std::stringstream s;
+    s << n;
+    return s.str();
+}
+
+void print_path(std::iostream &paths,const Route* rt){
+    for (size_t i=1;i<rt->size()-1;i++) {
+        BaseQueue* q = dynamic_cast<BaseQueue*>(rt->at(i));
+        if (q!=NULL)
+            paths << "Q:" << q->str() << " ";
+        else 
+            paths << "- ";
+    }
+
+    paths<<endl;
+}

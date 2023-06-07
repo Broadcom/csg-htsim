@@ -55,8 +55,8 @@ public:
     uint32_t failed_links;
     queue_type qt;
 
-    DragonFlyTopology(uint32_t p, uint32_t h, uint32_t a, mem_b queuesize, Logfile* log,EventList* ev,queue_type q);
-    DragonFlyTopology(uint32_t no_of_nodes, mem_b queuesize, Logfile* log,EventList* ev,queue_type q);
+    DragonFlyTopology(uint32_t p, uint32_t h, uint32_t a, mem_b queuesize, Logfile* log,EventList* ev,queue_type q,simtime_picosec rtt);
+    DragonFlyTopology(uint32_t no_of_nodes, mem_b queuesize, Logfile* log,EventList* ev,queue_type q, simtime_picosec rtt);
 
     void init_network();
     virtual vector<const Route*>* get_bidir_paths(uint32_t src, uint32_t dest, bool reverse);
@@ -79,6 +79,7 @@ private:
     uint32_t _p, _a, _h;
     uint32_t _no_of_nodes;
     uint32_t _no_of_groups,_no_of_switches;
+    simtime_picosec _rtt;
     mem_b _queuesize;
 };
 

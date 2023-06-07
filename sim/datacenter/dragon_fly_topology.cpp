@@ -15,18 +15,15 @@
 #include "ecnqueue.h"
 #include "main.h"
 
-extern uint32_t RTT;
-
 string ntoa(double n);
 string itoa(uint64_t n);
 
-//extern uint32_t N;
-
-DragonFlyTopology::DragonFlyTopology(uint32_t p, uint32_t a, uint32_t h, mem_b queuesize, Logfile* lg,EventList* ev,queue_type q){
+DragonFlyTopology::DragonFlyTopology(uint32_t p, uint32_t a, uint32_t h, mem_b queuesize, Logfile* lg,EventList* ev,queue_type q,simtime_picosec rtt){
     _queuesize = queuesize;
     logfile = lg;
     _eventlist = ev;
     qt = q;
+    _rtt = rtt;
  
     _p = p;
     _a = a;
@@ -41,11 +38,12 @@ DragonFlyTopology::DragonFlyTopology(uint32_t p, uint32_t a, uint32_t h, mem_b q
     init_network();
 }
 
-DragonFlyTopology::DragonFlyTopology(uint32_t no_of_nodes, mem_b queuesize, Logfile* lg,EventList* ev,queue_type q){
+DragonFlyTopology::DragonFlyTopology(uint32_t no_of_nodes, mem_b queuesize, Logfile* lg,EventList* ev,queue_type q,simtime_picosec rtt){
     _queuesize = queuesize;
     logfile = lg;
     _eventlist = ev;
     qt = q;
+    _rtt = rtt;
   
     set_params(no_of_nodes);
 
@@ -166,7 +164,7 @@ void DragonFlyTopology::init_network(){
             queues_switch_host[j][k]->setName("SW" + ntoa(j) + "->DST" +ntoa(k));
             logfile->writeName(*(queues_switch_host[j][k]));
           
-            pipes_switch_host[j][k] = new Pipe(timeFromUs(RTT), *_eventlist);
+            pipes_switch_host[j][k] = new Pipe(_rtt, *_eventlist);
             pipes_switch_host[j][k]->setName("Pipe-SW" + ntoa(j)  + "->DST" + ntoa(k));
             logfile->writeName(*(pipes_switch_host[j][k]));
           
@@ -185,7 +183,7 @@ void DragonFlyTopology::init_network(){
                 new LosslessInputQueue(*_eventlist,queues_host_switch[k][j]);
             }
           
-            pipes_host_switch[k][j] = new Pipe(timeFromUs(RTT), *_eventlist);
+            pipes_host_switch[k][j] = new Pipe(_rtt, *_eventlist);
             pipes_host_switch[k][j]->setName("Pipe-SRC" + ntoa(k) + "->SW" + ntoa(j));
             logfile->writeName(*(pipes_host_switch[k][j]));
         }
@@ -205,7 +203,7 @@ void DragonFlyTopology::init_network(){
             queues_switch_switch[k][j]->setName("SW" + ntoa(k) + "-I->SW" + ntoa(j));
             logfile->writeName(*(queues_switch_switch[k][j]));
         
-            pipes_switch_switch[k][j] = new Pipe(timeFromUs(RTT), *_eventlist);
+            pipes_switch_switch[k][j] = new Pipe(_rtt, *_eventlist);
             pipes_switch_switch[k][j]->setName("Pipe-SW" + ntoa(k) + "-I->SW" + ntoa(j));
             logfile->writeName(*(pipes_switch_switch[k][j]));
         
@@ -226,7 +224,7 @@ void DragonFlyTopology::init_network(){
                 new LosslessInputQueue(*_eventlist, queues_switch_switch[k][j]);
             }
         
-            pipes_switch_switch[j][k] = new Pipe(timeFromUs(RTT), *_eventlist);
+            pipes_switch_switch[j][k] = new Pipe(_rtt, *_eventlist);
             pipes_switch_switch[j][k]->setName("Pipe-SW" + ntoa(j) + "-I->SW" + ntoa(k));
             logfile->writeName(*(pipes_switch_switch[j][k]));
         }
@@ -252,7 +250,7 @@ void DragonFlyTopology::init_network(){
             queues_switch_switch[k][j]->setName("SW" + ntoa(k) + "-G->SW" + ntoa(j));
             logfile->writeName(*(queues_switch_switch[k][j]));
         
-            pipes_switch_switch[k][j] = new Pipe(timeFromUs(RTT), *_eventlist);
+            pipes_switch_switch[k][j] = new Pipe(_rtt, *_eventlist);
             pipes_switch_switch[k][j]->setName("Pipe-SW" + ntoa(k) + "-G->SW" + ntoa(j));
             logfile->writeName(*(pipes_switch_switch[k][j]));
         
@@ -273,7 +271,7 @@ void DragonFlyTopology::init_network(){
                 new LosslessInputQueue(*_eventlist, queues_switch_switch[k][j]);
             }
         
-            pipes_switch_switch[j][k] = new Pipe(timeFromUs(RTT), *_eventlist);
+            pipes_switch_switch[j][k] = new Pipe(_rtt, *_eventlist);
             pipes_switch_switch[j][k]->setName("Pipe-SW" + ntoa(j) + "-G->SW" + ntoa(k));
             logfile->writeName(*(pipes_switch_switch[j][k]));
         }        

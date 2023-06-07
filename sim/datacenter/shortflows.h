@@ -11,7 +11,6 @@
 #include <list>
 #include <map>
 #include "connection_matrix.h"
-extern int N;
 
 struct ShortFlow{
     TcpSrcTransfer* src;

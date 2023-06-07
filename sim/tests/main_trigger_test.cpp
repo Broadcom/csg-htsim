@@ -14,9 +14,6 @@
 #include "ndp.h"
 #include "compositequeue.h"
 
-string ntoa(double n);
-string itoa(uint64_t n);
-
 // Simulation params
 
 void exit_error(char* progr){
@@ -112,15 +109,4 @@ int main(int argc, char **argv) {
 
     // GO!
     while (eventlist.doNextEvent()) {}
-}
-
-string ntoa(double n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}
-string itoa(uint64_t n) {
-    stringstream s;
-    s << n;
-    return s.str();
 }

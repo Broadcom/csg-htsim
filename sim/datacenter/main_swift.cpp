@@ -43,9 +43,6 @@ uint32_t RTT = 1; // this is per link delay in us; identical RTT microseconds = 
 //FirstFit* ff = NULL;
 //uint32_t subflow_count = 1;
 
-string ntoa(double n);
-string itoa(uint64_t n);
-
 //#define SWITCH_BUFFER (SERVICE * RTT / 1000)
 #define USE_FIRST_FIT 0
 #define FIRST_FIT_INTERVAL 100
@@ -57,18 +54,6 @@ Logfile* lg;
 void exit_error(char* progr) {
     cout << "Usage " << progr << " [UNCOUPLED(DEFAULT)|COUPLED_INC|FULLY_COUPLED|COUPLED_EPSILON] [epsilon][COUPLED_SCALABLE_TCP" << endl;
     exit(1);
-}
-
-void print_path(std::ofstream &paths, const Route* rt){
-    for (uint32_t i=1;i<rt->size()-1;i+=2){
-        RandomQueue* q = (RandomQueue*)rt->at(i);
-        if (q!=NULL)
-            paths << q->str() << " ";
-        else 
-            paths << "NULL ";
-    }
-
-    paths<<endl;
 }
 
 int main(int argc, char **argv) {
@@ -488,16 +473,4 @@ is_dest[i] = 0;
         }
     }
     */
-}
-
-string ntoa(double n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}
-
-string itoa(uint64_t n) {
-    stringstream s;
-    s << n;
-    return s.str();
 }

@@ -27,7 +27,7 @@ public:
     Logfile* logfile;
     EventList* eventlist;
   
-    StarTopology(Logfile* log,EventList* ev,FirstFit* f);
+    StarTopology(Logfile* log,EventList* ev,FirstFit* f,simtime_picosec rtt);
 
     void init_network();
     virtual vector<const Route*>* get_paths(uint32_t src, uint32_t dest);
@@ -37,6 +37,7 @@ public:
     vector<uint32_t>* get_neighbours(uint32_t src);
     uint32_t no_of_nodes() const {return _no_of_nodes;}
 private:
+    simtime_picosec _rtt;
     map<RandomQueue*,int> _link_usage;
     uint32_t _no_of_nodes;
 };

@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-
+#include <sstream>
 double drand();
 
 
@@ -51,6 +51,12 @@ typedef int mem_pkts;
 
 typedef uint32_t addr_t;
 typedef uint16_t port_t;
+
+std::string ntoa(double n);
+std::string itoa(uint64_t n);
+
+class Route; 
+void print_path(std::iostream &paths,const Route* rt);
 
 // Gumph
 #if defined (__cplusplus) && !defined(__STL_NO_NAMESPACES)

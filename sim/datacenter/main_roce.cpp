@@ -37,9 +37,6 @@ uint32_t RTT = 1; // this is per link delay in us; identical RTT microseconds = 
 int DEFAULT_NODES = 432;
 #define DEFAULT_QUEUE_SIZE 15
 
-string ntoa(double n);
-string itoa(uint64_t n);
-
 //#define SWITCH_BUFFER (SERVICE * RTT / 1000)
 #define USE_FIRST_FIT 0
 #define FIRST_FIT_INTERVAL 100
@@ -49,18 +46,6 @@ EventList eventlist;
 void exit_error(char* progr) {
     cout << "Usage " << progr << " [-nodes N]\n\t[-conns C]\n\t[-q queue_size]\n\t[-queue_type composite|random|lossless|lossless_input|]\n\t[-tm traffic_matrix_file]\n\t[-strat route_strategy (single,\n\tecmp_host,ecmp_ar,\n\tecmp_host_ar ar_thresh)]\n\t[-log log_level]\n\t[-seed random_seed]\n\t[-end end_time_in_usec]\n\t[-mtu MTU]\n\t[-hop_latency x] per hop wire latency in us,default 1\n\t[-switch_latency x] switching latency in us, default 0\n\t[-start_delta] time in us to randomly delay the start of connections\n\t[-pfc_thresholds low high]" << endl;
     exit(1);
-}
-
-void print_path(std::ofstream &paths,const Route* rt){
-    for (size_t i=1;i<rt->size()-1;i++) {
-        BaseQueue* q = dynamic_cast<BaseQueue*>(rt->at(i));
-        if (q!=NULL)
-            paths << "Q:" << q->str() << " ";
-        else 
-            paths << "- ";
-    }
-
-    paths<<endl;
 }
 
 int main(int argc, char **argv) {
@@ -626,16 +611,4 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 10; i++)
     cout << "Hop " << i << " Count " << counts[i] << endl;*/
         
-}
-
-string ntoa(double n) {
-    stringstream s;
-    s << n;
-    return s.str();
-}
-
-string itoa(uint64_t n) {
-    stringstream s;
-    s << n;
-    return s.str();
 }

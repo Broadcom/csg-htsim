@@ -41,8 +41,6 @@ void SubflowControl::add_subflow(MultipathTcpSrc* flow, int choice, int structur
     flow_counters[flow]->structure->push_back(structure);
 }
 
-extern void print_path(std::ofstream & p, const Route* route);
-
 void SubflowControl::run(){
   int crt_counter = 0,delta = 0;
   MultipathTcpSrc* mtcp;

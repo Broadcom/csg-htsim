@@ -6,16 +6,14 @@
 #include <iostream>
 #include "main.h"
 
-extern uint32_t RTT;
-extern int N;
-
 string ntoa(double n);
 string itoa(uint64_t n);
 
-VL2Topology::VL2Topology(Logfile* lg, EventList* ev,FirstFit * fit){
+VL2Topology::VL2Topology(Logfile* lg, EventList* ev,FirstFit * fit,simtime_picosec rtt){
     logfile = lg;
     eventlist = ev;
     ff = fit;
+    _rtt = rtt;
     _no_of_nodes = NS * NT;
 
     init_network();
@@ -60,7 +58,7 @@ void VL2Topology::init_network(){
             queues_nt_ns[j][k]->setName("Queue-nt-ns-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(queues_nt_ns[j][k]));
 
-            pipes_nt_ns[j][k] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_nt_ns[j][k] = new Pipe(_rtt, *eventlist);
             pipes_nt_ns[j][k]->setName("Pipe-nt-ns-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(pipes_nt_ns[j][k]));
 
@@ -71,7 +69,7 @@ void VL2Topology::init_network(){
             queues_ns_nt[k][j]->setName("Queue-ns-nt-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(queues_ns_nt[k][j]));
 
-            pipes_ns_nt[k][j] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_ns_nt[k][j] = new Pipe(_rtt, *eventlist);
             pipes_ns_nt[k][j]->setName("Pipe-ns-nt-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_ns_nt[k][j]));
 
@@ -105,7 +103,7 @@ void VL2Topology::init_network(){
             logfile->writeName(*(queues_na_nt[k][j]));
           
 
-            pipes_na_nt[k][j] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_na_nt[k][j] = new Pipe(_rtt, *eventlist);
             pipes_na_nt[k][j]->setName("Pipe-na-nt-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_na_nt[k][j]));
           
@@ -116,7 +114,7 @@ void VL2Topology::init_network(){
             queues_nt_na[j][k]->setName("Queue-nt-na-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(queues_nt_na[j][k]));
           
-            pipes_nt_na[j][k] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_nt_na[j][k] = new Pipe(_rtt, *eventlist);
             pipes_nt_na[j][k]->setName("Pipe-nt-na-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(pipes_nt_na[j][k]));
 
@@ -147,7 +145,7 @@ void VL2Topology::init_network(){
 
             logfile->writeName(*(queues_ni_na[j][k]));
           
-            pipes_ni_na[j][k] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_ni_na[j][k] = new Pipe(_rtt, *eventlist);
             pipes_ni_na[j][k]->setName("Pipe-ni-na-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(pipes_ni_na[j][k]));
           
@@ -160,7 +158,7 @@ void VL2Topology::init_network(){
             queues_na_ni[k][j]->setName("Queue-na-ni-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(queues_na_ni[k][j]));
 
-            pipes_na_ni[k][j] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes_na_ni[k][j] = new Pipe(_rtt, *eventlist);
             pipes_na_ni[k][j]->setName("Pipe-na-ni-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_na_ni[k][j]));
 

@@ -10,13 +10,12 @@
 #include "compositeprioqueue.h"
 #include "main.h"
 
-extern uint32_t RTT;
-
 string ntoa(double n);
 string itoa(uint64_t n);
 
-CamCubeTopology::CamCubeTopology(Logfile* lg, EventList* ev,queue_type qt){
+CamCubeTopology::CamCubeTopology(Logfile* lg, EventList* ev,queue_type qt,simtime_picosec rtt){
     logfile = lg;
+    _rtt = rtt;
     eventlist = ev;
     this->qt = qt;
     init_network();
@@ -91,7 +90,7 @@ void CamCubeTopology::init_network(){
             queues[i][l]->setName("SRV_" + name + "(axis_" + ntoa(l)+")_pos");
             logfile->writeName(*(queues[i][l]));
             
-            pipes[i][l] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes[i][l] = new Pipe(_rtt, *eventlist);
             pipes[i][l]->setName("Pipe-SRV_" + name + "(axis_" + ntoa(l)+")_pos");
             logfile->writeName(*(pipes[i][l]));
 
@@ -102,7 +101,7 @@ void CamCubeTopology::init_network(){
             queues[i][l+3]->setName("SRV_" + name + "(axis_" + ntoa(l)+")_neg");
             logfile->writeName(*(queues[i][l+3]));
             
-            pipes[i][l+3] = new Pipe(timeFromUs(RTT), *eventlist);
+            pipes[i][l+3] = new Pipe(_rtt, *eventlist);
             pipes[i][l+3]->setName("Pipe-SRV_" + name + "(axis_" + ntoa(l)+")_neg");
             logfile->writeName(*(pipes[i][l+3]));
         }
