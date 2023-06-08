@@ -13,4 +13,6 @@ Temp files will be placed in the "data" subdirectory.  The may be
 large - the graph only depends on the data/fct* graphs, so you can
 delete any others.
 
+The script generates a graph in comparison.pdf.  The expected output is in comparison.original.pdf
+
 
