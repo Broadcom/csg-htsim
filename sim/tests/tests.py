@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import json
 import subprocess
@@ -81,7 +81,7 @@ def run_test(test_name: str, update: bool = False, verbose: bool = False):
 		output = folder + '/' + test_name + '.out'
 		out_param = ['-o', output]
 
-	ref_iterator = iglob('*.ref', root_dir=folder)
+	ref_iterator = iglob(f'{folder}/*.ref')
 	ref = next(ref_iterator, None)
 	if not ref:
 		print('No configurations found')
@@ -90,7 +90,7 @@ def run_test(test_name: str, update: bool = False, verbose: bool = False):
 	while (ref):
 		print('# Checking: ' + ref)
 		try:
-			with open(folder + '/' + ref, 'r+b') as ref_file:
+			with open(ref, 'r+b') as ref_file:
 				first_line = ref_file.readline()
 
 				param_values = json.loads(first_line)
