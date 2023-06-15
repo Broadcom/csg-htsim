@@ -126,7 +126,7 @@ TcpSrc::connect(const Route& routeout, const Route& routeback, TcpSink& sink,
 
 void
 TcpSrc::receivePacket(Packet& pkt) 
-{
+{   //cerr << eventlist().now() / 1e12 << " " << __PRETTY_FUNCTION__ << ":(" << int(pkt.dst()) << "," << int(pkt.flow_id()) << ")" << endl;
     simtime_picosec ts;
     TcpAck *p = (TcpAck*)(&pkt);
     TcpAck::seq_t seqno = p->ackno();
@@ -386,6 +386,7 @@ TcpSrc::send_packets() {
     if (!_established){
         //send SYN packet and wait for SYN/ACK
         Packet * p  = TcpPacket::new_syn_pkt(_flow, *_route, 1, 1);
+        if (_dst>=0) p->set_dst(_dst);
         _highest_sent = 1;
 
         p->sendOn();
@@ -459,6 +460,7 @@ TcpSrc::send_packets() {
 #else
         TcpPacket* p = TcpPacket::newpkt(_flow, *_route, _highest_sent+1, data_seq, _mss);
 #endif
+        if (_dst>=0) p->set_dst(_dst);
         p->flow().logTraffic(*p,*this,TrafficLogger::PKT_CREATESEND);
         p->set_ts(eventlist().now());
     
@@ -479,6 +481,7 @@ TcpSrc::retransmit_packet() {
         assert(_highest_sent == 1);
 
         Packet* p  = TcpPacket::new_syn_pkt(_flow, *_route, 1, 1);
+        if (_dst>=0) p->set_dst(_dst);
         p->sendOn();
 
         cout << "Resending SYN, waiting for SYN/ACK" << endl;
@@ -513,6 +516,7 @@ TcpSrc::retransmit_packet() {
 #else
     TcpPacket* p = TcpPacket::newpkt(_flow, *_route, _last_acked+1, data_seq, _mss);
 #endif
+    if (_dst>=0) p->set_dst(_dst);
 
     p->flow().logTraffic(*p,*this,TrafficLogger::PKT_CREATESEND);
     p->set_ts(eventlist().now());
@@ -631,6 +635,7 @@ TcpSink::connect(TcpSrc& src, const Route& route) {
 // seqno is the first byte of the new packet.
 void
 TcpSink::receivePacket(Packet& pkt) {
+    //cerr << _src->eventlist().now()/1e12 << " " << __PRETTY_FUNCTION__  << ":(" << int(pkt.dst()) << "," << int(pkt.flow_id()) << ")" << endl;    
     TcpPacket *p = (TcpPacket*)(&pkt);
     TcpPacket::seq_t seqno = p->seqno();
     simtime_picosec ts = p->ts();
@@ -697,6 +702,7 @@ TcpSink::send_ack(simtime_picosec ts,bool marked) {
     TcpAck *ack = TcpAck::newpkt(_src->_flow, *rt, 0, _cumulative_ack, 
                                  _mSink!=NULL?_mSink->data_ack():0);
 
+    if (_dst>=0) ack->set_dst(_dst);
     ack->flow().logTraffic(*ack,*this,TrafficLogger::PKT_CREATESEND);
     ack->set_ts(ts);
     if (marked) 
