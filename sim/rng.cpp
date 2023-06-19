@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <climits>
 #include <random>
 
 using namespace std;
@@ -12,5 +13,15 @@ void srand(unsigned seed)
 
 int rand()
 {
-    return random_engine();
+    return random_engine() & INT_MAX;
+}
+
+void srandom(unsigned seed)
+{
+    srand(seed);
+}
+
+long random()
+{
+    return rand();
 }
