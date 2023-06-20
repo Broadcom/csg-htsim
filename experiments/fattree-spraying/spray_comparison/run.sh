@@ -2,7 +2,7 @@ SIMPATH=../../../sim/datacenter/
 CWND=50
 FLOWSIZE=2000000
 MTU=4000
-XMAX=1000 # stop after 1000us
+XMAX=1500 # stop after 1000us
 STRAT=ecmp
 LINKSPEED=100000
 QUEUESIZE=35
@@ -10,7 +10,7 @@ echo "Running permutation experiment with flowsize $FLOWSIZE"
 for SEED in {13..17}
 do
 
-    for N in 432 1024 8192 16000
+    for N in 432 1024 2000 3456 8192 16000
     do
 	FLOWS=${N}
 	CMD="python $SIMPATH/connection_matrices/gen_permutation.py perm-${N}-${FLOWS}.cm $N $FLOWS $FLOWSIZE 0.0 ${SEED}"
