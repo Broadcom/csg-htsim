@@ -415,7 +415,7 @@ TcpSrc::send_packets() {
     }
 
     while ((_last_acked + c >= _highest_sent + _mss) 
-           && (_highest_sent+_mss <= _flow_size+1)) {
+            && (_highest_sent <= _flow_size+1)) {
         uint64_t data_seq = 0;
 
 #ifdef MODEL_RECEIVE_WINDOW
