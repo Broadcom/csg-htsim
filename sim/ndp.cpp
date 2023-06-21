@@ -882,7 +882,10 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
         p->flow().logTraffic(*p,*this,TrafficLogger::PKT_SEND);
         p->set_ts(eventlist().now());
         p->set_pacerno(pacer_no);
+        if (p->flow_id() == 7846){
+            cout << "RTX Sent flow_id " << p->flow_id() <<" _highest_sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
 
+        }
         switch (_route_strategy) {
         case SINGLE_PATH:
             p->set_route(*_route);
@@ -989,6 +992,10 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
           cout << "Sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
         }
         */
+        if (p->flow_id() == 7846){
+            cout << "Sent flow_id " << p->flow_id() <<" _highest_sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
+
+        }
         _highest_sent += _mss;  //XX beware wrapping
         _packets_sent++;
         _new_packets_sent++;
