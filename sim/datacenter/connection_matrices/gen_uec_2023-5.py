@@ -4,10 +4,11 @@ from plumbum import BG, FG, local
 
 message_size = 2000000
 
-ms_to_str ={2000000: '2M'}
+ms_to_str ={2000000: '2M', 100000000: '100M'}
 if __name__ == "__main__":
     cfg_list = []
-    for node_cnt in [8, 32, 512, 1058, 8192, 16562, 32768]:
+#    for node_cnt in [8, 32, 512, 1058, 8192, 16562, 32768]:
+    for node_cnt in [432, 1024, 8192, 16000, 27648]:
         for traffic_pattern in ['gen_bipartite', 'gen_permutation']:
             cfg = dict(
                 node_cnt=node_cnt,
