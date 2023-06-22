@@ -10,7 +10,7 @@
 ////////////////////////////////////////////////////////////////
 
 TcpSrc::TcpSrc(TcpLogger* logger, TrafficLogger* pktlogger, 
-               EventList &eventlist)
+               EventList &eventlist, const string& myNodename)
     : EventSource(eventlist,"tcp"),  _logger(logger), _flow(pktlogger)
 {
     _mss = Packet::data_packet_size();
@@ -60,7 +60,7 @@ TcpSrc::TcpSrc(TcpLogger* logger, TrafficLogger* pktlogger,
     _rtx_timeout_pending = false;
     _RFC2988_RTO_timeout = timeInf;
 
-    _nodename = "tcpsrc";
+    _nodename = myNodename; //"tcpsrc";
 }
 
 #ifdef PACKET_SCATTER
