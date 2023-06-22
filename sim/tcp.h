@@ -29,7 +29,7 @@ class MultipathTcpSink;
 class TcpSrc : public PacketSink, public EventSource {
     friend class TcpSink;
 public:
-    TcpSrc(TcpLogger* logger, TrafficLogger* pktlogger, EventList &eventlist, const string& myNodename=string("tcpsrc"));
+    TcpSrc(TcpLogger* logger, TrafficLogger* pktlogger, EventList &eventlist);
     virtual void connect(const Route& routeout, const Route& routeback, 
                          TcpSink& sink, simtime_picosec startTime);
     void startflow();
