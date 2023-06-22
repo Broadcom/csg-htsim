@@ -148,8 +148,7 @@ CompositeQueue::receivePacket(Packet& pkt)
 
     //is this a Tofino packet from the egress pipeline?
     if (!pkt.header_only()){
-        bool is_trim = pkt.type() == NDP;
-        if (_queuesize_low+pkt.size() <= _maxsize || (drand()<0.5 && is_trim) ) {   //
+        if (_queuesize_low+pkt.size() <= _maxsize || drand()<0.5 ) {  
             //regular packet; don't drop the arriving packet
 
             // we are here because either the queue isn't full or,
