@@ -281,15 +281,20 @@ FatTreeTopology::alloc_queue(QueueLogger* queueLogger, linkspeed_bps speed, mem_
             return new ECNQueue(speed, memFromPkt(2*SWITCH_BUFFER), *_eventlist, queueLogger, memFromPkt(15));
     case COMPOSITE_ECN_LB:
         {
-            if (_bdp == 0 || _bdp > queuesize ){
-                cerr << "We need BDP to set the ecn mark threshold, now BDP value is " << _bdp << " \n";
-                exit(1);                
-            }
+            // if (_bdp == 0 || _bdp > queuesize ){
+            //     cerr << "We need BDP to set the ecn mark threshold, now BDP value is " << _bdp << " \n";
+            //     exit(1);                
+            // }
             CompositeQueue* q = new CompositeQueue(speed, queuesize, *_eventlist, queueLogger);
             if (!tor || dir == UPLINK) {
                 // don't use ECN on ToR downlinks
-                // q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * _bdp);
-                q->set_ecn_thresholds(24*1000, 96*1000);
+                if (_bdp == 0){
+                    q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * queuesize);
+                }else{
+                    // q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * _bdp);
+                    q->set_ecn_thresholds(24*1000, 96*1000);
+                }
+
             }
             return q;
         }

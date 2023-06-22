@@ -527,7 +527,10 @@ void NdpSrc::processNack(const NdpNack& nack){
     }
     */
     NdpPacket::seq_t seqno = nack.ackno();
-
+    if (nack.flow_id() == 4355)
+    {
+        cout << "processNack flow_id " << nack.flow_id() << " nackno " << seqno << " pull " << nack.pull()  <<" at " << timeAsUs(eventlist().now())<< endl;
+    }
     switch (_route_strategy) {
     case SINGLE_PATH:
         p = NdpPacket::newpkt(_flow, *_route, seqno, 0, _mss, true,
@@ -573,11 +576,16 @@ void NdpSrc::processNack(const NdpNack& nack){
 /* Process an ACK.  Mostly just housekeeping, but if the ACK also has
    then PULL bit set, we also send a new packet immediately */
 void NdpSrc::processAck(const NdpAck& ack) {
+    
     NdpAck::seq_t ackno = ack.ackno();
     NdpAck::seq_t pacerno = ack.pacerno();
     NdpAck::seq_t pullno = ack.pullno();
     NdpAck::seq_t cum_ackno = ack.cumulative_ack();
     bool pull = ack.pull();
+        if (ack.flow_id() == 4355){
+            cout << "processAck flow_id " << ack.flow_id() <<" ackno " <<ackno << " cum_ackno " << cum_ackno << endl;
+
+        }   
     if (pull) {
         /*
         if (_log_me)
@@ -730,7 +738,10 @@ void NdpSrc::receivePacket(Packet& pkt)
             if (_log_me)
                 cout << "Received PULL at " << timeAsUs(eventlist().now()) << " pullno " << p->pullno() << endl;
             */
-            
+
+            if (p->flow_id() == 4355){
+                cout << "PUllpacket flow_id " << p->flow_id() <<" pullno " <<p->pullno() <<" at "<< timeAsUs(eventlist().now()) << endl;
+            }   
             pull_packets(p->pullno(), p->pacerno());
             return;
         }
@@ -858,6 +869,9 @@ int NdpSrc::next_route() {
 }
 
 void NdpSrc::pull_packets(NdpPull::seq_t pull_no, NdpPull::seq_t pacer_no) {
+    if (_flow.flow_id() == 4355){
+        std::cout << "PUll flow_id " << _flow.flow_id()  << " pull_no " << pull_no << " last_pull " << _last_pull << endl;
+    }
     // Pull number is cumulative both to allow for lost pulls and to
     // reduce reverse-path RTT - if one pull is delayed on one path, a
     // pull that gets there faster on another path can supercede it
@@ -882,8 +896,8 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
         p->flow().logTraffic(*p,*this,TrafficLogger::PKT_SEND);
         p->set_ts(eventlist().now());
         p->set_pacerno(pacer_no);
-        if (p->flow_id() == 7846){
-            cout << "RTX Sent flow_id " << p->flow_id() <<" _highest_sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
+        if (p->flow_id() == 4355){
+            cout << "RTX Sent flow_id " << p->flow_id() <<" seqno " << p->seqno() << " Flight Size: " << _flight_size << endl;
 
         }
         switch (_route_strategy) {
@@ -992,7 +1006,7 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
           cout << "Sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
         }
         */
-        if (p->flow_id() == 7846){
+        if (p->flow_id() == 4355){
             cout << "Sent flow_id " << p->flow_id() <<" _highest_sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
 
         }
@@ -1782,7 +1796,10 @@ void NdpSink::send_nack(simtime_picosec ts, NdpPacket::seq_t ackno, NdpPacket::s
     assert(nack);
     nack->flow().logTraffic(*nack,*this,TrafficLogger::PKT_CREATE);
     nack->set_ts(ts);
-
+    if (_src->_flow.flow_id() == 4355)
+    {
+        cout << "send_nack flow_id " << _src->_flow.flow_id()<< " enqueue_pull " << enqueue_pull <<" nackno "<< ackno <<" at "<< timeAsUs(_src->eventlist().now()) << " pathid " << nack->pathid()  << endl;
+    }
     if (enqueue_pull)
         _pacer->sendPacket(nack, pacer_no, this);
     else {
@@ -1948,9 +1965,11 @@ void NdpPullPacer::sendPacket(Packet* ack, NdpPacket::seq_t rcvd_pacer_no, NdpSi
     NdpPull *pull_pkt = NULL;
     if (ack->type() == NDPACK) {
         pull_pkt = NdpPull::newpkt((NdpAck*)ack);
+        pull_pkt->set_pathid(ack->pathid());
         ((NdpAck*)ack)->dont_pull();
     } else if (ack->type() == NDPNACK) {
         pull_pkt = NdpPull::newpkt((NdpNack*)ack);
+        pull_pkt->set_pathid(ack->pathid());
         ((NdpNack*)ack)->dont_pull();
     }
     pull_pkt->flow().logTraffic(*pull_pkt,*this,TrafficLogger::PKT_CREATE);
@@ -2036,7 +2055,10 @@ void NdpPullPacer::doNextEvent(){
     }
     set_pacerno(pkt, _pacer_no++);
     pkt->sendOn();
-
+    if (pkt->flow_id() == 4355)
+    {
+        cout << "sendPull flow_id " << pkt->flow_id() <<" with pullno " <<((NdpPull*)pkt)->pullno()  << " at " << timeAsUs(eventlist().now()) << " pathid " << pkt->pathid() << endl;
+    }
     /*
     if (_log_me){
         cout << "Pacer sending PULL at "<<timeAsUs(eventlist().now())<<endl;
