@@ -1,0 +1,4 @@
+{
+    "params": ["qs", "conns", "seed"],
+    "output": "logout.dat"
+}

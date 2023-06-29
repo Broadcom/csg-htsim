@@ -26,14 +26,29 @@ int main(int argc, char **argv) {
 
     int cnt = 10;
     int qs = 100;
+    unsigned seed = time(NULL);
 
-    if (argc>1)
-        cnt = atoi(argv[1]);
+    int i = 1;
+    while (i < argc)  {
+        if (!strcmp(argv[i], "-qs")) {
+            qs = atoi(argv[i + 1]);
+            cout << "queue_size " << qs << endl;
+            i++;
+        }
+        else if (!strcmp(argv[i], "-conns")) {
+            cnt = atoi(argv[i + 1]);
+            cout << "no_of_conns " << cnt << endl;
+            i++;
+        }
+        else if (!strcmp(argv[i], "-seed")) {
+            seed = atoi(argv[i + 1]);
+            cout << "random seed " << seed << endl;
+            i++;
+        }
+        i++;
+    }
 
-    if (argc>2)
-        qs = atoi(argv[2]);
-    
-    srand(time(NULL));
+    srand(seed);
 
     Packet::set_packet_size(9000);    
     linkspeed_bps SERVICE1 = speedFromMbps((uint64_t)10000);
