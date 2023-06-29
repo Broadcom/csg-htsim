@@ -165,7 +165,7 @@ class NdpSrc : public PacketSink, public EventSource, public TriggerTarget {
     int next_route();
 
     void pull_packets(NdpPull::seq_t pull_no, NdpPull::seq_t pacer_no);
-    void send_packet(NdpPull::seq_t pacer_no);
+    int send_packet(NdpPull::seq_t pacer_no); // returns number of packets actually sent
 
     virtual const string& nodename() { return _nodename; }
     inline void set_flowid(flowid_t flow_id) { _flow.set_flowid(flow_id);}
@@ -215,6 +215,7 @@ class NdpSrc : public PacketSink, public EventSource, public TriggerTarget {
     bool is_bad_path();
     void log_rtt(simtime_picosec sent_time);
     NdpPull::seq_t _last_pull;
+    NdpPull::seq_t _max_pull;
     uint64_t _flow_size;  //The flow size in bytes.  Stop sending after this amount.
     simtime_picosec _stop_time;
     map <NdpPacket::seq_t, NdpPacket*> _rtx_queue; //Packets queued for (hopefuly) imminent retransmission
