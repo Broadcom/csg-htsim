@@ -481,21 +481,21 @@ int main(int argc, char **argv) {
         hpccSnk->setName("HPCC_sink_" + ntoa(src) + "_" + ntoa(dest));
         logfile.writeName(*hpccSnk);
                         
-        ((HostQueue*)top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)])->addHostSender(hpccSrc);
+        ((HostQueue*)top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0])->addHostSender(hpccSrc);
 
         if (route_strategy!=SINGLE_PATH && route_strategy!=ECMP_FIB){
             abort();
         } else if (route_strategy==ECMP_FIB) {
             Route* srctotor = new Route();
             
-            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-            srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]);
+            srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]);
+            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]->getRemoteEndpoint());
 
             Route* dsttotor = new Route();
-            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-            dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]);
+            dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]);
+            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]->getRemoteEndpoint());
 
 
             if (crt->start != TRIGGER_START && start_delta > 0){

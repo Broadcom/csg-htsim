@@ -13,13 +13,14 @@
 #include "loggertypes.h"
 #include "eth_pause_packet.h"
 #include "switch.h"
+#include "callback_pipe.h"
 
 class Switch;
 
 class LosslessInputQueue : public Queue, public VirtualQueue {
 public:
     LosslessInputQueue(EventList &eventlist);
-    LosslessInputQueue(EventList &eventlist,BaseQueue* peer, Switch* sw);
+    LosslessInputQueue(EventList &eventlist,BaseQueue* peer, Switch* sw, simtime_picosec wire_latency);
     LosslessInputQueue(EventList &eventlist,BaseQueue* peer);
 
     virtual void receivePacket(Packet& pkt);
@@ -40,6 +41,7 @@ public:
 
 private:
     int _state_recv;
+    CallbackPipe* _wire;
 };
 
 #endif

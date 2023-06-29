@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
     int packet_size = 9000;
     uint32_t path_entropy_size = 10000000;
     uint32_t no_of_conns = 0, no_of_nodes = DEFAULT_NODES;
+    uint32_t tiers = 3; // we support 2 and 3 tier fattrees     
     double logtime = 0.25; // ms;
     stringstream filename(ios_base::out);
     simtime_picosec hop_latency = timeFromUs((uint32_t)1);
@@ -80,6 +81,7 @@ int main(int argc, char **argv) {
     int end_time = 1000;//in microseconds
 
     char* tm_file = NULL;
+    char* topo_file = NULL;
 
     while (i<argc) {
         if (!strcmp(argv[i],"-o")) {
@@ -97,6 +99,11 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i],"-nodes")) {
             no_of_nodes = atoi(argv[i+1]);
             cout << "no_of_nodes "<<no_of_nodes << endl;
+            i++;
+        } else if (!strcmp(argv[i],"-tiers")) {
+            tiers = atoi(argv[i+1]);
+            cout << "tiers "<< tiers << endl;
+            assert(tiers == 2 || tiers == 3);
             i++;
         } else if (!strcmp(argv[i],"-queue_type")) {
             if (!strcmp(argv[i+1], "composite")) {
@@ -162,6 +169,10 @@ int main(int argc, char **argv) {
             tm_file = argv[i+1];
             cout << "traffic matrix input file: "<< tm_file << endl;
             i++;
+        } else if (!strcmp(argv[i],"-topo")){
+            topo_file = argv[i+1];
+            cout << "FatTree topology input file: "<< topo_file << endl;
+            i++;
         } else if (!strcmp(argv[i],"-q")){
             queuesize = atoi(argv[i+1]);
             i++;
@@ -218,6 +229,10 @@ int main(int argc, char **argv) {
             else if (!strcmp(argv[i+1],"bandwidth")){
                 cout << "Adaptive routing based on bandwidth utilization " << endl;
                 FatTreeSwitch::fn = &FatTreeSwitch::compare_bandwidth;
+            }
+            else if (!strcmp(argv[i+1],"flowcount")){
+                cout << "Adaptive routing based on bandwidth utilization " << endl;
+                FatTreeSwitch::fn = &FatTreeSwitch::compare_flow_count;
             }
             else if (!strcmp(argv[i+1],"pqb")){
                 cout << "Adaptive routing based on pause, queuesize and bandwidth utilization " << endl;
@@ -346,8 +361,14 @@ int main(int argc, char **argv) {
         qlf->set_sample_period(timeFromUs(10.0));
     }
 #ifdef FAT_TREE
-    FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 
+    FatTreeTopology* top;
+    if (topo_file) {
+        top = FatTreeTopology::load(topo_file, qlf, eventlist, queuesize, qt, snd_type);
+    } else {
+        FatTreeTopology::set_tiers(tiers);
+        top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 
                                                &eventlist,NULL,qt,hop_latency,switch_latency,snd_type);
+    }
 #endif
 
 #ifdef OV_FAT_TREE
@@ -447,7 +468,7 @@ int main(int argc, char **argv) {
         connection* crt = all_conns->at(c);
         int src = crt->src;
         int dest = crt->dst;
-        //cout << "Connection " << crt->src << "->" <<crt->dst << " starting at " << crt->start << " size " << crt->size << endl;
+        cout << "Connection " << crt->src << "->" <<crt->dst << " starting at " << timeAsUs(crt->start) << " size " << crt->size << endl;
 
         roceSrc = new RoceSrc(NULL, NULL, eventlist,linkspeed);
 
@@ -484,25 +505,26 @@ int main(int argc, char **argv) {
         roceSnk->setName("Roce_sink_" + ntoa(src) + "_" + ntoa(dest));
         logfile.writeName(*roceSnk);
                         
-        ((HostQueue*)top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)])->addHostSender(roceSrc);
+        ((HostQueue*)top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0])->addHostSender(roceSrc);
 
         if (route_strategy!=SINGLE_PATH && route_strategy!=ECMP_FIB){
             abort();
         } else if (route_strategy==ECMP_FIB) {
             Route* srctotor = new Route();
             
-            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-            srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]);
+            srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]);
+            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]->getRemoteEndpoint());
 
             Route* dsttotor = new Route();
-            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-            dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]);
+            dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]);
+            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]->getRemoteEndpoint());
 
 
             if (crt->start != TRIGGER_START && start_delta > 0){
-                crt->start += timeFromUs(drand()*start_delta);
+                crt->start += timeFromUs(drand48()*start_delta);
+                cout << "Start is " << timeAsUs(crt->start) << endl;
             }
             roceSrc->connect(srctotor, dsttotor, *roceSnk, crt->start);
 

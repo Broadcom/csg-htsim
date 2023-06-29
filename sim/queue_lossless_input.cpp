@@ -16,6 +16,7 @@ LosslessInputQueue::LosslessInputQueue(EventList& eventlist)
     assert(_high_threshold>0);
     assert(_high_threshold > _low_threshold);
 
+    _wire = NULL;
 }
 
 LosslessInputQueue::LosslessInputQueue(EventList& eventlist,BaseQueue* peer)
@@ -31,11 +32,12 @@ LosslessInputQueue::LosslessInputQueue(EventList& eventlist,BaseQueue* peer)
     _nodename = ss.str();
     _remoteEndpoint = peer;
     _switch = NULL;
+    _wire = NULL;
 
     peer->setRemoteEndpoint(this);
 }
 
-LosslessInputQueue::LosslessInputQueue(EventList& eventlist,BaseQueue* peer, Switch* sw)
+LosslessInputQueue::LosslessInputQueue(EventList& eventlist,BaseQueue* peer, Switch* sw, simtime_picosec wire_latency)
     : Queue(speedFromGbps(1),Packet::data_packet_size()*2000,eventlist,NULL),
       VirtualQueue(),
       _state_recv(READY)
@@ -48,6 +50,8 @@ LosslessInputQueue::LosslessInputQueue(EventList& eventlist,BaseQueue* peer, Swi
     _nodename = ss.str();
     _remoteEndpoint = peer;
     _switch = sw;
+
+    _wire = new CallbackPipe(wire_latency, eventlist, _remoteEndpoint);
 
     assert(_switch);
 
@@ -106,5 +110,9 @@ void LosslessInputQueue::sendPause(unsigned int wait){
         switchID = getSwitch()->getID();
 
     EthPausePacket* pkt = EthPausePacket::newpkt(wait,switchID);
-    getRemoteEndpoint()->receivePacket(*pkt);
+
+    if (_wire)
+        _wire->receivePacket(*pkt);
+    else
+        getRemoteEndpoint()->receivePacket(*pkt);
 };

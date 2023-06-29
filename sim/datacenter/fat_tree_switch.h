@@ -105,6 +105,7 @@ public:
     uint32_t replace_worst_choice(vector<FibEntry*>* ecmp_set, int8_t (*cmp)(FibEntry*,FibEntry*),uint32_t my_choice);
     uint32_t adaptive_route_p2c(vector<FibEntry*>* ecmp_set, int8_t (*cmp)(FibEntry*,FibEntry*));
 
+    static int8_t compare_flow_count(FibEntry* l, FibEntry* r);
     static int8_t compare_pause(FibEntry* l, FibEntry* r);
     static int8_t compare_bandwidth(FibEntry* l, FibEntry* r);
     static int8_t compare_queuesize(FibEntry* l, FibEntry* r);
@@ -136,6 +137,9 @@ private:
     vector<FibEntry*>* _uproutes;
 
     unordered_map<uint32_t,FlowletInfo*> _flowlet_maps;
+
+    static unordered_map<BaseQueue*,uint32_t> _port_flow_counts;
+
     uint32_t _crt_route;
     uint32_t _hash_salt;
     simtime_picosec _last_choice;
