@@ -61,7 +61,7 @@ htsim_dumbell_ndptunnel:	$(OBJS) main_dumbell_ndptunnel.o
 
 
 clean:	
-	rm -f *.o htsim htsim_* libhtsim.a parse_output
+	rm -f *.o htsim htsim_* libhtsim.a parse_output datacenter/*.o datacenter/htsim_* tests/*.o tests/htsim_*
 parse_output.o: parse_output.cpp libhtsim.a
 config.o:	config.cpp config.h
 switch.o: 	switch.cpp switch.h drawable.h
