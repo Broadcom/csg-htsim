@@ -267,8 +267,12 @@ int
 STrackSrc::send_packets() {
     uint32_t c = _strack_cwnd + _inflate;
 
+
     if(_last_acked >= _flow_size){
+
         double diff = timeAsNs(eventlist().now() - _starttime);
+        cout << "Flow " << _name << " flow_id " << flow_id() << " finished at " << timeAsUs(eventlist().now() - _starttime) << " total bytes " << _last_acked << endl;
+
         cout << timeAsUs(eventlist().now()) << " src " << _sink->_srcaddr << " dst " << _dstaddr << " flow_id " << flow_id() << " tput: "<< _flow_size*8/(diff) <<" duration " << diff << endl;
     }    
     int sent_count = 0;
@@ -396,6 +400,7 @@ void
 STrackSrc::retransmit_packet() {
     if(_last_acked >= _flow_size){
         double diff = timeAsNs(eventlist().now() - _starttime);
+        cout << "Flow " << _name << " flow_id " << flow_id() << " finished at " << timeAsUs(eventlist().now() - _starttime) << " total bytes " << _last_acked << endl;
         cout << timeAsUs(eventlist().now()) << " " << nodename() << " flow_id " << flow_id() << " tput: "<< _flow_size*8/(diff) << "Gbps" << endl;
     }
     cout << timeAsUs(eventlist().now()) << " " << nodename() << " retransmit_packet " << endl;

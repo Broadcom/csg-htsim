@@ -562,6 +562,8 @@ int main(int argc, char **argv) {
 
     vector<connection*>* all_conns = conns->getAllConnections();
     vector <STrackSrc*> strack_srcs;
+    vector <STrackSink*> strack_sinks;
+
 
     for (size_t c = 0; c < all_conns->size(); c++){
         connection* crt = all_conns->at(c);
@@ -616,6 +618,9 @@ int main(int argc, char **argv) {
         strackSnk->setName("STRACKSink"+ntoa(c)); logfile.writeName(*strackSnk);
         strackSnk->set_src(src);
         strackSnk->set_dst(dest);
+        
+        strack_srcs.push_back(strackSrc);
+        strack_sinks.push_back(strackSnk);
         // int choice = rand()%net_paths[src][dest]->size();
         // routeout = new Route(*(net_paths[src][dest]->at(choice)));
 
@@ -731,6 +736,8 @@ int main(int argc, char **argv) {
     while (eventlist.doNextEvent()) {
     }
 
+    top->report_stats();
+
     cout << "Done" << endl;
     // int new_pkts = 0, rtx_pkts = 0, bounce_pkts = 0;
     // for (size_t ix = 0; ix < strack_srcs.size(); ix++) {
@@ -738,6 +745,8 @@ int main(int argc, char **argv) {
     //     rtx_pkts += strack_srcs[ix]->_rtx_packets_sent;
     //     bounce_pkts += strack_srcs[ix]->_bounces_received;
     // }
+
+
     // cout << "New: " << new_pkts << " Rtx: " << rtx_pkts << " Bounced: " << bounce_pkts << endl;
 
     /*list <const Route*>::iterator rt_i;

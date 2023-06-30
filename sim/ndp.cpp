@@ -665,8 +665,9 @@ void NdpSrc::processAck(const NdpAck& ack) {
     assert(_flight_size>=0);
 
     if (cum_ackno >= _flow_size){
-        cout << "Flow " << _name << " flow_id " << flow_id() << " finished at " << timeAsUs(eventlist().now()) << " total bytes " << cum_ackno << endl;
         double diff = timeAsNs(eventlist().now() - _starttime);
+        cout << "Flow " << _name << " flow_id " << flow_id() << " finished at " << timeAsUs(eventlist().now() - _starttime) << " total bytes " << cum_ackno << endl;
+        
         cout << timeAsUs(eventlist().now()) << " src " << _sink->_srcaddr << " dst " << _dstaddr << " flow_id " << flow_id() << " tput: "<< _flow_size*8/(diff) <<" duration " << diff << endl;
         
 	if (_end_trigger) {

@@ -20,6 +20,7 @@ CompositeQueue::CompositeQueue(linkspeed_bps bitrate, mem_b maxsize, EventList& 
     _num_drops = 0;
     _num_stripped = 0;
     _num_bounced = 0;
+    _hightest_qdepth = 0;
     _ecn_minthresh = maxsize*2; // don't set ECN by default
     _ecn_maxthresh = maxsize*2; // don't set ECN by default
 
@@ -29,6 +30,7 @@ CompositeQueue::CompositeQueue(linkspeed_bps bitrate, mem_b maxsize, EventList& 
     ss << "compqueue(" << bitrate/1000000 << "Mb/s," << maxsize << "bytes)";
     _nodename = ss.str();
     _queue_id = global_queue_id++;
+
 }
 
 void CompositeQueue::beginService(){
@@ -48,7 +50,9 @@ void CompositeQueue::beginService(){
     //     }
     //     return;
     // }
-
+    if( _queuesize_low  > _hightest_qdepth){
+        _hightest_qdepth = _queuesize_low;
+    }
     if (!_enqueued_high.empty()){
         _serv = QUEUE_HIGH;
         eventlist().sourceIsPendingRel(*this, drainTime(_enqueued_high.back()));
@@ -143,6 +147,12 @@ CompositeQueue::doNextEvent() {
 void
 CompositeQueue::receivePacket(Packet& pkt)
 {
+    if(_first_packet_time == 0){
+        _first_packet_time = eventlist().now();
+    }
+    _last_packet_time = eventlist().now();
+    _num_pkts ++;
+
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_ARRIVE);
     if (_logger) _logger->logQueue(*this, QueueLogger::PKT_ARRIVE, pkt);
 
@@ -212,6 +222,7 @@ CompositeQueue::receivePacket(Packet& pkt)
             Packet* pkt_p = &pkt;
             _enqueued_low.push(pkt_p);
             _queuesize_low += pkt.size();
+            
             if (_logger) _logger->logQueue(*this, QueueLogger::PKT_ENQUEUE, pkt);
             
             if (_serv==QUEUE_INVALID) {

@@ -125,6 +125,10 @@ Queue::Queue(linkspeed_bps bitrate, mem_b maxsize, EventList& eventlist,
     stringstream ss;
     ss << "queue(" << bitrate/1000000 << "Mb/s," << maxsize << "bytes)";
     _nodename = ss.str();
+    
+    _last_packet_time = 0;
+    _first_packet_time = 0;
+    _num_pkts = 0;
 }
 
 
@@ -483,6 +487,11 @@ FairPriorityQueue::serviceTime(Packet& pkt) {
 void
 FairPriorityQueue::receivePacket(Packet& pkt) 
 {
+    if(_first_packet_time == 0){
+        _first_packet_time = eventlist().now();
+    }
+    _last_packet_time = eventlist().now();
+    _num_pkts ++;
     //is this a PAUSE packet?
     if (pkt.type()==ETH_PAUSE){
         EthPausePacket* p = (EthPausePacket*)&pkt;

@@ -1,0 +1,41 @@
+Requires: gnuplot
+
+This experiment runs 6 simulations comparing oblivious packet
+spraying, with and without trimming, with simple ECN load balancing.
+The basic scenario is an 8192-node 3-tier FatTree running an 8192-flow
+permutation traffic matrix.  The base RTT is around 10us.  With a
+4Kbyte MTU, the BDP is around 32 packets.  The transport is EQDS/NDP,
+but as there is no fan out or fan-in, most of the specific properties
+of NDP don't matter.  NDP runs with a 50 packet fixed window, so
+around 1.5 BDPs per flow.  The flows are all 2000000 bytes long and
+start simultaneously.  The combinations are:
+
+- Oblivious spraying across 256 entropy values using per-packet ECMP
+  load balancing.  The queue size is set large enough that no loss
+  occurs.
+
+- Oblivious spraying across 32 entropy values using per-packet ECMP
+  load balancing.
+
+- Oblivious spraying across 256 entropy values using per-packet ECMP
+  load balancing.  Packet trimming is enabled at 1 BDP
+  queuesize. Trimming provides active load balancing because
+  retransmitted trimmed packets will be sent on a different path with
+  high priority.
+
+- Oblivious spraying across 32 entropy values using per-packet ECMP
+  load balancing.  Packet trimming is enabled at 1 BDP
+  queuesize.
+
+- Path-aware load balancing.  Sender sprays across 256 paths.  If a
+  queue exceeds 0.5 BDPs, ECN will be set.  Receiver echoes ECN.  On
+  receiving CE, sender increments path score for the corresponding
+  entropy value. When a packet is about to be sent, if the path score
+  is greater than zero, path score is decremented, but path is skipped
+  and the next one is tried until a path with score zero is found.
+
+- Path-aware load balancing.  As above, but sender sprays across 32 paths.
+
+The expected graph is in cdf_fct.original.pdf.  Script generates
+cdf_fct.pdf on successful completion.
+

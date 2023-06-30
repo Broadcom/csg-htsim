@@ -744,7 +744,10 @@ int main(int argc, char **argv) {
     while (eventlist.doNextEvent()) {
     }
 
+
     cout << "Done" << endl;
+    top->report_stats();
+
     cout << "Done" << endl;
     int new_pkts = 0, rtx_pkts = 0, bounce_pkts = 0;
     for (size_t ix = 0; ix < ndp_srcs.size(); ix++) {

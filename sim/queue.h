@@ -105,6 +105,10 @@ class Queue : public BaseQueue {
     int num_drops() const {return _num_drops;}
     void reset_drops() {_num_drops = 0;}
 
+    simtime_picosec  _first_packet_time;
+    simtime_picosec _last_packet_time;
+    int _num_pkts;
+
  protected:
     // Mechanism
     // start serving the item at the head of the queue
@@ -164,6 +168,8 @@ class FairPriorityQueue : public HostQueue {
     virtual mem_b queuesize() const;
     virtual simtime_picosec serviceTime(Packet& pkt);
 
+
+
  protected:
     //this is needed for lossless operation!
     
@@ -180,6 +186,7 @@ class FairPriorityQueue : public HostQueue {
     mem_b _queuesize[Q_NONE];
     queue_priority_t _servicing;
     int _state_send;
+
 };
 
 

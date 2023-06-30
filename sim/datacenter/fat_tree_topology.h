@@ -77,6 +77,7 @@ public:
 
     void count_queue(Queue*);
     void print_path(std::ofstream& paths,uint32_t src,const Route* route);
+    void report_stats();
     vector<uint32_t>* get_neighbours(uint32_t src) { return NULL;};
     uint32_t no_of_nodes() const {return _no_of_nodes;}
     uint32_t no_of_cores() const {return NCORE;}

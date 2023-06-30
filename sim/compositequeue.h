@@ -48,6 +48,7 @@ class CompositeQueue : public Queue {
         _ecn_maxthresh = max_thresh;
     }
 
+    int _hightest_qdepth;
     int _num_packets;
     int _num_headers; // only includes data packets stripped to headers, not acks or nacks
     int _num_acks;

@@ -292,7 +292,7 @@ FatTreeTopology::alloc_queue(QueueLogger* queueLogger, linkspeed_bps speed, mem_
                     q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * queuesize);
                 }else{
                     // q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * _bdp);
-                    q->set_ecn_thresholds(24*1000, 96*1000);
+                    q->set_ecn_thresholds(37.5*1000, 140*1000);
                 }
 
             }
@@ -564,6 +564,7 @@ void FatTreeTopology::init_network(){
             switches_c[j]->configureLossless();
         }
     }
+    // report_stats();
 }
 
 void FatTreeTopology::add_failed_link(uint32_t type, uint32_t switch_id, uint32_t link_id){
@@ -903,4 +904,68 @@ void FatTreeTopology::add_switch_loggers(Logfile& log, simtime_picosec sample_pe
              ; i++) {
         switches_c[i]->add_logger(log, sample_period);
     }
+}
+
+
+void FatTreeTopology::report_stats(){
+    cout << "queues_nup_nlp " << queues_nup_nlp.size() <<endl;
+    cout << "queues_nlp_nup " << queues_nlp_nup.size() << endl;
+    cout << "queues_nc_nup " << queues_nc_nup.size() << endl;
+    cout << "queues_nup_nc " << queues_nup_nc.size() << endl;
+
+    //Lower layer in pod to upper layer in pod!
+    for (uint32_t tor = 0; tor < NTOR; tor++) {
+        uint32_t podid = 2*tor/K;
+        uint32_t agg_min, agg_max;
+        if (_tiers == 3) {
+            //Connect the lower layer switch to the upper layer switches in the same pod
+            agg_min = MIN_POD_ID(podid);
+            agg_max = MAX_POD_ID(podid);
+        } else {
+            //Connect the lower layer switch to all upper layer switches
+            assert(_tiers == 2);
+            agg_min = 0;
+            agg_max = NAGG-1;
+        }
+        for (uint32_t agg=agg_min; agg<=agg_max; agg++){
+            CompositeQueue *q = dynamic_cast<CompositeQueue*>(queues_nup_nlp[agg][tor]);
+            if (q == NULL){
+                cout<< "queue is empty" << endl;
+            }
+            cout<< q->nodename() << " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
+            q = dynamic_cast<CompositeQueue*>(queues_nlp_nup[tor][agg]);
+            cout<< q->nodename() << " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
+            
+        }
+    }
+    // Upper layer in pod to core!
+    if (_tiers == 3) {
+        for (uint32_t agg = 0; agg < NAGG; agg++) {
+            uint32_t podpos = agg%(K/2);
+            for (uint32_t l = 0; l < K/2; l++) {
+                uint32_t core = podpos * K/2 + l;
+                CompositeQueue *q = dynamic_cast<CompositeQueue*>(queues_nup_nc[agg][core]);
+                cout<< q->nodename()<< " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
+                q = dynamic_cast<CompositeQueue*>(queues_nc_nup[core][agg]);
+                cout<< q->nodename()<< " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
+            }
+        }
+    }
+    for (uint32_t tor = 0; tor < NTOR; tor++) {  
+        for (uint32_t l = 0; l < K/2; l++) {
+            uint32_t srv = tor * K/2 + l; 
+            CompositeQueue *q = dynamic_cast<CompositeQueue*>(queues_nlp_ns[tor][srv]);
+            simtime_picosec duration = q->_last_packet_time - q->_first_packet_time;
+            if(duration > 0){
+                float pps = q->_num_pkts / (duration / 1000000.0);
+                cout << "rx " << q->nodename() << " pps(M) " << pps << endl;
+            }
+            FairPriorityQueue *srv_q = dynamic_cast<FairPriorityQueue*>(queues_ns_nlp[srv][tor]);
+            duration = srv_q->_last_packet_time - srv_q->_first_packet_time;
+            if (duration > 0){
+                float pps = srv_q->_num_pkts / (duration / 1000000.0);
+                cout << "tx " << srv_q->nodename() << " pps(M) " << pps << endl;
+            }
+        }
+    }  
 }

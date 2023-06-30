@@ -94,4 +94,4 @@ fat_tree_switch.o: fat_tree_switch.h fat_tree_switch.cpp
 	$(CC) $(INCLUDE) $(CFLAGS) -c fat_tree_switch.cpp
 
 clean:	
-	rm -f *.o htsim_ndp* htsim_swift* htsim_tcp* htsim_dctcp* htsim_roce* htsim_hpcc*
+	rm -f *.o htsim_ndp* htsim_swift* htsim_tcp* htsim_dctcp* htsim_roce* htsim_hpcc* htsim_strack*
