@@ -104,9 +104,9 @@ faircompositequeue.o: faircompositequeue.cpp $(HDRS)
 prioqueue.o: prioqueue.cpp $(HDRS)
 cpqueue.o: cpqueue.cpp $(HDRS)
 compositeprioqueue.o: compositeprioqueue.cpp $(HDRS)
-ndp_transfer.o: ndp_transfer.cpp $(HRDS)
-roce.o: roce.cpp $(HRDS)
-hpcc.o: hpcc.cpp $(HRDS)
+ndp_transfer.o: ndp_transfer.cpp $(HDRS)
+roce.o: roce.cpp $(HDRS)
+hpcc.o: hpcc.cpp $(HDRS)
 qcn.o: qcn.cpp qcn.h loggers.h config.h 
 
 .cpp.o:
