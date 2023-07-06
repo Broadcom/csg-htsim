@@ -370,7 +370,9 @@ STrackSrc::send_next_packet() {
     // cout << "src " << get_id() << " sending " << _flow.flow_id() << " route " << _route << endl;
     STrackPacket* p = STrackPacket::newpkt(_flow, *_route, _highest_sent+1, mss(), _dstaddr, _srcaddr);
     p->set_pathid(_path_ids[choose_route()]);
-    // cout << timeAsUs(eventlist().now()) << " " << nodename() << " sent " << _highest_sent+1 << "-" << _highest_sent+mss() << endl;
+    if (_flow.flow_id() == 1000002285){
+        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " Sent " << _highest_sent+1 << " path_id " << p->pathid()<< endl;
+    }
     _highest_sent += mss();  
     _packets_sent += mss();
 
@@ -415,7 +417,10 @@ STrackSrc::retransmit_packet() {
     }
     //cout << timeAsUs(eventlist().now()) << " sending seqno " << _last_acked+1 << endl;
     STrackPacket* p = STrackPacket::newpkt(_flow, *_route, _last_acked+1, mss(), _dstaddr);
-
+    //Yanfang Todo: we need set path id for the retransmited packets.
+    if (_flow.flow_id() == 1000002285){
+        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << "RTX Sent " << _highest_sent+1 << " path_id " << p->pathid()<< endl;
+    }
     p->flow().logTraffic(*p, *this, TrafficLogger::PKT_CREATESEND);
     p->set_ts(eventlist().now());
     p->sendOn();
@@ -440,6 +445,9 @@ STrackSrc::receivePacket(Packet& pkt)
     int32_t pathid_echo = p->pathid_echo();
     if (p->ecn_echo()) {
         count_ecn(pathid_echo, skip_rounds);
+        _next_pathid  = -1;
+    }else{
+        _next_pathid = pathid_echo;
     }
 
     p->free();
@@ -449,6 +457,9 @@ STrackSrc::receivePacket(Packet& pkt)
         return;
     }
 
+    if (_flow.flow_id() == 1000002285){
+        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " receive ackno " << ackno << " _last_acked " << _last_acked  << endl;
+    }
     _total_bytes_acked += _mss;
     /// XXX this assumes exactly one ack received for each data packet received
     // If acks are lost, this will be wrong.
@@ -506,6 +517,22 @@ int STrackSrc::choose_route() {
         if (_crt_path == _paths.size()) {
             // permute_paths();
             _crt_path = 0;
+        }
+        break;
+    case ECMP_RANDOM_ECN:
+        if(_highest_sent < _mss*_paths.size()){  //  _strack_cwnd
+            _crt_path++;
+            if (_crt_path == _paths.size()) {
+                // permute_paths();
+                _crt_path = 0;
+            }
+        }else{
+            if (_next_pathid == -1){
+                assert(_paths.size() > 0);
+                _crt_path = random()%_paths.size();
+            }else{
+                _crt_path = _next_pathid;
+            }
         }
         break;
     case ECMP_FIB_ECN:
@@ -721,7 +748,8 @@ void STrackSrc::permute_sequence(vector<int>& seq) {
 void STrackSrc::set_paths(uint32_t no_of_paths){
     if(_route_strategy != ECMP_FIB
        && _route_strategy != ECMP_FIB_ECN
-       && _route_strategy != REACTIVE_ECN){
+       && _route_strategy != REACTIVE_ECN
+       && _route_strategy != ECMP_RANDOM_ECN){
         cout << "Set paths (path_count) called with wrong route strategy" <<endl;
         abort();
     }
@@ -904,6 +932,9 @@ STrackSink::receivePacket(Packet& pkt) {
     int size = p->size() - PKTOVERHEAD; // TODO: the following code assumes all packets are the same size
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_RCVDESTROY);
 
+    if (pkt.flow_id() == 1000002285){
+        cout << timeAsUs(_src->eventlist().now()) << " flow_id " <<pkt.flow_id()  << " receive seqno " << seqno  << endl;
+    }
     bool marked = (p->flags()&ECN_CE) != 0; // ECN for load balancing
     int32_t path_id = p->pathid();
 
@@ -961,15 +992,21 @@ STrackSink::send_ack(simtime_picosec ts, bool ecn_marked, int32_t path_id) {
         _crt_path = 0;
     }
     ack->set_pathid(_path_ids[_crt_path]);
+
+    if(_route_strategy == ECMP_RANDOM_ECN){
+        ack->set_pathid(random()%_paths.size());
+    }
     // ack->set_pathid(55);
     // set ECN echo only if that is selected strategy
     ack->set_pathid_echo(path_id);
     ack->set_ecn_echo(ecn_marked &&
                       (_route_strategy == ECMP_FIB_ECN ||
-                       _route_strategy == REACTIVE_ECN));
+                       _route_strategy == REACTIVE_ECN ||
+                       _route_strategy == ECMP_RANDOM_ECN));
     if (ecn_marked &&
         (_route_strategy == ECMP_FIB_ECN ||
-         _route_strategy == REACTIVE_ECN))
+         _route_strategy == REACTIVE_ECN ||
+         _route_strategy == ECMP_RANDOM_ECN))
         cout << "setting ECE\n";
     assert(ack);
 
@@ -1013,6 +1050,7 @@ void STrackSink::set_paths(uint32_t no_of_paths){
 
     case ECMP_FIB:
     case ECMP_FIB_ECN:
+    case ECMP_RANDOM_ECN:
     case REACTIVE_ECN:
         assert(_paths.size() == 0);
         _paths.resize(no_of_paths);

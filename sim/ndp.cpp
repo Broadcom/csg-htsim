@@ -129,6 +129,7 @@ void NdpSrc::set_end_trigger(Trigger& end_trigger) {
 }
 
 void NdpSrc::permute_paths() {
+    return;
     int len = _paths.size();
     for (int i = 0; i < len; i++) {
         int ix = random() % (len - i);
@@ -156,6 +157,7 @@ void permute_sequence(vector<int>& seq) {
     for (uint32_t i = 0; i < len; i++) {
         seq[i] = i;
     }
+    return;
     for (uint32_t i = 0; i < len; i++) {
         int ix = random() % (len - i);
         int tmpval = seq[ix];
@@ -527,7 +529,7 @@ void NdpSrc::processNack(const NdpNack& nack){
     }
     */
     NdpPacket::seq_t seqno = nack.ackno();
-    if (nack.flow_id() == 20534)
+    if (nack.flow_id() == 392)
     {
         cout << "processNack flow_id " << nack.flow_id() << " nackno " << seqno << " pull " << nack.pull()  <<" at " << timeAsUs(eventlist().now())<< endl;
     }
@@ -582,7 +584,7 @@ void NdpSrc::processAck(const NdpAck& ack) {
     NdpAck::seq_t pullno = ack.pullno();
     NdpAck::seq_t cum_ackno = ack.cumulative_ack();
     bool pull = ack.pull();
-        if (ack.flow_id() == 20534){
+        if (ack.flow_id() == 392){
             cout << "processAck flow_id " << ack.flow_id() <<" ackno " <<ackno << " cum_ackno " << cum_ackno << endl;
 
         }   
@@ -740,7 +742,7 @@ void NdpSrc::receivePacket(Packet& pkt)
                 cout << "Received PULL at " << timeAsUs(eventlist().now()) << " pullno " << p->pullno() << endl;
             */
 
-            if (p->flow_id() == 20534){
+            if (p->flow_id() == 392){
                 cout << "PUllpacket flow_id " << p->flow_id() <<" pullno " <<p->pullno() <<" at "<< timeAsUs(eventlist().now()) << endl;
             }   
             pull_packets(p->pullno(), p->pacerno());
@@ -870,18 +872,18 @@ int NdpSrc::next_route() {
 }
 
 void NdpSrc::pull_packets(NdpPull::seq_t pull_no, NdpPull::seq_t pacer_no) {
-    if (_flow.flow_id() == 20534){
+    if (_flow.flow_id() == 392){
         std::cout << "PUll flow_id " << _flow.flow_id()  << " pull_no " << pull_no << " last_pull " << _last_pull << endl;
     }
     // Pull number is cumulative both to allow for lost pulls and to
     // reduce reverse-path RTT - if one pull is delayed on one path, a
     // pull that gets there faster on another path can supercede it
     //cout << "Last pull " << _last_pull << " pull no " << pull_no << endl;
-//    while (_last_pull < pull_no) {
-//        send_packet(pacer_no);
-//        //cout << "Sending packet out" << endl;
-//        _last_pull++;
-//    }
+   while (_last_pull < pull_no) {
+       send_packet(pacer_no);
+       //cout << "Sending packet out" << endl;
+       _last_pull++;
+   }
 	// Here is a bug that I found, there are two packets, the first packet gets dropped, the second packet arrives at the reciever, 
 	//the cut-payloaded packet of the first packet arrives at the receiver first, the second packet arrives at the receiver later. 
 	//the receiver generates an Nack for the first packet with pull no =2,
@@ -891,14 +893,14 @@ void NdpSrc::pull_packets(NdpPull::seq_t pull_no, NdpPull::seq_t pacer_no) {
 	// The PULL packet would first increase the _last_pull to be 3, because there is not any packet in the retransmission queue, nothing happens.
 	// the NACK packet would call pull_packets function, because _last_pull has already increased to 3, the NACK packet would not trigger a retransmission. 
 	// At the end, only timeout can help this packet gets retransmitted. 
-	if(pull_no !=0 && pull_no <= _last_pull){
-		send_packet(pacer_no);
-	}else{
-		while (_last_pull < pull_no) {
-		send_packet(pacer_no);
-		_last_pull++;
-		}
-	}
+	// if(pull_no !=0 && pull_no <= _last_pull ){ //&& _flight_size < _cwnd 
+	// 	send_packet(pacer_no);
+	// }else{
+	// 	while (_last_pull < pull_no) {
+	// 	send_packet(pacer_no);
+	// 	_last_pull++;
+	// 	}
+	// }
 }
 
 // Note: the data sequence number is the number of Byte1 of the packet, not the last byte.
@@ -914,8 +916,8 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
         p->flow().logTraffic(*p,*this,TrafficLogger::PKT_SEND);
         p->set_ts(eventlist().now());
         p->set_pacerno(pacer_no);
-        if (p->flow_id() == 20534){
-            cout << "RTX Sent flow_id " << p->flow_id() <<" seqno " << p->seqno() << " Flight Size: " << _flight_size << endl;
+        if (p->flow_id() == 392){
+            cout <<eventlist().now() <<" RTX Sent flow_id " << p->flow_id() <<" seqno " << p->seqno() << " Flight Size: " << _flight_size << endl;
 
         }
         switch (_route_strategy) {
@@ -1024,9 +1026,8 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
           cout << "Sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
         }
         */
-        if (p->flow_id() == 20534){
-            cout << "Sent flow_id " << p->flow_id() <<" _highest_sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
-
+        if (p->flow_id() == 392){
+            cout << eventlist().now() <<" Sent flow_id " << p->flow_id() <<" _highest_sent " << _highest_sent+1 << " Flight Size: " << _flight_size << endl;
         }
         _highest_sent += _mss;  //XX beware wrapping
         _packets_sent++;
@@ -1752,7 +1753,7 @@ void NdpSink::send_ack(simtime_picosec ts, NdpPacket::seq_t ackno,
     ack->flow().logTraffic(*ack,*this,TrafficLogger::PKT_CREATE);
     ack->set_ts(ts);
 
-    if (_src->_flow.flow_id() == 20534)
+    if (_src->_flow.flow_id() == 392)
 	        {
 			        cout << "send_ack flow_id " << _src->_flow.flow_id()<< " enqueue_pull " << enqueue_pull <<" ackno "<< ackno <<" at "<< timeAsUs(_src->eventlist().now()) << " pathid " << ack->pathid()  << endl;
 				    }
@@ -1817,7 +1818,7 @@ void NdpSink::send_nack(simtime_picosec ts, NdpPacket::seq_t ackno, NdpPacket::s
     assert(nack);
     nack->flow().logTraffic(*nack,*this,TrafficLogger::PKT_CREATE);
     nack->set_ts(ts);
-    if (_src->_flow.flow_id() == 20534)
+    if (_src->_flow.flow_id() == 392)
     {
         cout << "send_nack flow_id " << _src->_flow.flow_id()<< " enqueue_pull " << enqueue_pull <<" nackno "<< ackno <<" at "<< timeAsUs(_src->eventlist().now()) << " pathid " << nack->pathid()  << endl;
     }
@@ -2076,7 +2077,7 @@ void NdpPullPacer::doNextEvent(){
     }
     set_pacerno(pkt, _pacer_no++);
     pkt->sendOn();
-    if (pkt->flow_id() == 20534)
+    if (pkt->flow_id() == 392)
     {
         cout << "sendPull flow_id " << pkt->flow_id() <<" with pullno " <<((NdpPull*)pkt)->pullno()  << " at " << timeAsUs(eventlist().now()) << " pathid " << pkt->pathid() << endl;
     }

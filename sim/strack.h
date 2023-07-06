@@ -118,6 +118,7 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     simtime_picosec _fs_range;
     double _fs_min_cwnd;  // note: in packets
     double _fs_max_cwnd;  // note: in packets
+    int _next_pathid;
 
     // paths for PLB or MPSTrack
     vector<const Route*> _paths;

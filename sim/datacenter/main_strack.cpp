@@ -337,6 +337,10 @@ int main(int argc, char **argv) {
                 route_strategy = ECMP_FIB_ECN;
                 FatTreeSwitch::set_strategy(FatTreeSwitch::ECMP);
                 qt = COMPOSITE_ECN_LB;
+            } else if (!strcmp(argv[i+1], "ecmp_host_random_ecn")) {
+                route_strategy = ECMP_RANDOM_ECN;
+                FatTreeSwitch::set_strategy(FatTreeSwitch::ECMP);
+                qt = COMPOSITE_ECN_LB;
             } else if (!strcmp(argv[i+1], "reactive_ecn")) {
                 // Jitu's suggestion for something really simple
                 // One path at a time, but switch whenever we get a trim or ecn
@@ -394,6 +398,7 @@ int main(int argc, char **argv) {
     
     switch (route_strategy) {
     case ECMP_FIB_ECN:
+    case ECMP_RANDOM_ECN:
     case REACTIVE_ECN:
         if (qt != COMPOSITE_ECN_LB) {
             fprintf(stderr, "Route Strategy is ECMP ECN.  Must use an ECN queue\n");
@@ -645,6 +650,7 @@ int main(int argc, char **argv) {
             break;
         case ECMP_FIB:
         case ECMP_FIB_ECN:
+        case ECMP_RANDOM_ECN:
         case REACTIVE_ECN:
             {
                 Route* srctotor = new Route();

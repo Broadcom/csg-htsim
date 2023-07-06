@@ -153,6 +153,11 @@ CompositeQueue::receivePacket(Packet& pkt)
     _last_packet_time = eventlist().now();
     _num_pkts ++;
 
+    if(_flow_counts.find(pkt.flow_id()) == _flow_counts.end()){
+        _flow_counts[pkt.flow_id()] = 0;
+    }
+    _flow_counts[pkt.flow_id()]  = _flow_counts[pkt.flow_id()] + 1;
+    
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_ARRIVE);
     if (_logger) _logger->logQueue(*this, QueueLogger::PKT_ARRIVE, pkt);
 

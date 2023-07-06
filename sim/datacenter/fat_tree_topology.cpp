@@ -292,7 +292,7 @@ FatTreeTopology::alloc_queue(QueueLogger* queueLogger, linkspeed_bps speed, mem_
                     q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * queuesize);
                 }else{
                     // q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * _bdp);
-                    q->set_ecn_thresholds(37.5*1000, 140*1000);
+                    q->set_ecn_thresholds(37.5*1000, 100*1000);
                 }
 
             }
@@ -913,6 +913,10 @@ void FatTreeTopology::report_stats(){
     cout << "queues_nc_nup " << queues_nc_nup.size() << endl;
     cout << "queues_nup_nc " << queues_nup_nc.size() << endl;
 
+    int _max_queue = 0;
+    CompositeQueue *max_qdepth_q = NULL;
+    int index_j = 0;
+    int queue_type = -1;
     //Lower layer in pod to upper layer in pod!
     for (uint32_t tor = 0; tor < NTOR; tor++) {
         uint32_t podid = 2*tor/K;
@@ -929,11 +933,17 @@ void FatTreeTopology::report_stats(){
         }
         for (uint32_t agg=agg_min; agg<=agg_max; agg++){
             CompositeQueue *q = dynamic_cast<CompositeQueue*>(queues_nup_nlp[agg][tor]);
-            if (q == NULL){
-                cout<< "queue is empty" << endl;
+            if(q->_hightest_qdepth > _max_queue){
+                max_qdepth_q = q;
+                _max_queue = q->_hightest_qdepth;
             }
             cout<< q->nodename() << " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
             q = dynamic_cast<CompositeQueue*>(queues_nlp_nup[tor][agg]);
+
+            if(q->_hightest_qdepth > _max_queue){
+                max_qdepth_q = q;
+                _max_queue = q->_hightest_qdepth;
+            }
             cout<< q->nodename() << " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
             
         }
@@ -945,8 +955,18 @@ void FatTreeTopology::report_stats(){
             for (uint32_t l = 0; l < K/2; l++) {
                 uint32_t core = podpos * K/2 + l;
                 CompositeQueue *q = dynamic_cast<CompositeQueue*>(queues_nup_nc[agg][core]);
+                if (q->_hightest_qdepth > _max_queue)
+                {
+                    max_qdepth_q = q;
+                    _max_queue = q->_hightest_qdepth;
+                }
                 cout<< q->nodename()<< " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
                 q = dynamic_cast<CompositeQueue*>(queues_nc_nup[core][agg]);
+                if (q->_hightest_qdepth > _max_queue)
+                {
+                    max_qdepth_q = q;
+                    _max_queue = q->_hightest_qdepth;
+                }
                 cout<< q->nodename()<< " _queue_id " << q->_queue_id << " max_queue "<< q->_hightest_qdepth << endl;
             }
         }
@@ -967,5 +987,8 @@ void FatTreeTopology::report_stats(){
                 cout << "tx " << srv_q->nodename() << " pps(M) " << pps << endl;
             }
         }
-    }  
+    }
+
+    for (auto i : max_qdepth_q->_flow_counts)    // auto keyword 
+		cout <<"worst_queue "<< max_qdepth_q->nodename() <<" flow_id " <<  i.first << " pkts " << i.second << endl;
 }

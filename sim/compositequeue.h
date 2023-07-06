@@ -58,6 +58,8 @@ class CompositeQueue : public Queue {
     int _num_bounced;  // count of packets we bounced
     int _queue_id;
 
+    map <flowid_t, int32_t> _flow_counts;
+
  protected:
     // Mechanism
     void beginService(); // start serving the item at the head of the queue
