@@ -5,12 +5,13 @@ CWND=50 # 50 packet (1.5 BDP) window
 FLOWSIZE=2000000 # flow size in bytes
 MTU=4000
 #XMAX=80 #for flowsize = 25
-XMAX=300 # for flowsize = 512
+# XMAX=300 # for flowsize = 512
+XMAX=3000 # for flowsize = 20MB
 LINKSPEED=100000 # 100Gb/s network
 TIERS=3 # 3 tier fattree
 EXTRA=0 # start simultaneously
 SEED=0 # random seed for TM
-STRAT=ecmp
+STRAT=ecmp_host
 PATHS=256
 QUEUESIZE=35
 echo "Running permutation experiment with $N nodes, $CONNS flows"
