@@ -520,7 +520,7 @@ int STrackSrc::choose_route() {
         }
         break;
     case ECMP_RANDOM_ECN:
-        if(_highest_sent < _mss*_paths.size()){  //  _strack_cwnd
+        if(_highest_sent < _strack_cwnd ){  //_mss*_paths.size()
             _crt_path++;
             if (_crt_path == _paths.size()) {
                 // permute_paths();
