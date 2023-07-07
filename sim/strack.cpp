@@ -80,6 +80,7 @@ STrackSrc::STrackSrc(STrackRtxTimerScanner& rtx_scanner, STrackLogger* logger,
 
     _sink = NULL;
     _nodename = "strack_src" + std::to_string(get_id());
+    _next_pathid = -1; 
 }
 
 void
