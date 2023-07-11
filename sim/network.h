@@ -182,6 +182,7 @@ class Packet {
 
     packetid_t _id;
     PacketFlow* _flow{nullptr};
+    static PacketFlow _defaultFlow;
     LosslessInputQueue* _ingressqueue;
     uint32_t _path_len; // length of the path in hops - used in BCube priority routing with NDP
 };
