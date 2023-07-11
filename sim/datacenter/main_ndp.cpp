@@ -28,7 +28,7 @@
 
 // Simulation params
 
-#define PRINT_PATHS 1
+//#define PRINTPATHS 1
 
 #define PERIODIC 0
 #include "main.h"
@@ -52,7 +52,7 @@ void filter_paths(uint32_t src_id, vector<const Route*>& paths, FatTreeTopology*
     uint32_t num_servers = top->no_of_servers();
     uint32_t num_cores = top->no_of_cores();
     uint32_t num_pods = top->no_of_pods();
-    uint32_t pod_switches = top->no_of_switches_per_pod();
+    uint32_t pod_switches = top->tor_switches_per_pod();
 
     uint32_t path_classes = pod_switches/2;
     cout << "srv: " << num_servers << " cores: " << num_cores << " pods: " << num_pods << " pod_sw: " << pod_switches << " classes: " << path_classes << endl;
@@ -111,6 +111,7 @@ int main(int argc, char **argv) {
     uint64_t high_pfc = 15, low_pfc = 12;
 
     char* tm_file = NULL;
+    char* topo_file = NULL;
 
     while (i<argc) {
         if (!strcmp(argv[i],"-o")) {
@@ -206,6 +207,10 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i],"-tm")){
             tm_file = argv[i+1];
             cout << "traffic matrix input file: "<< tm_file << endl;
+            i++;
+        } else if (!strcmp(argv[i],"-topo")){
+            topo_file = argv[i+1];
+            cout << "FatTree topology input file: "<< topo_file << endl;
             i++;
         } else if (!strcmp(argv[i],"-q")){
             queuesize = atoi(argv[i+1]);
@@ -458,11 +463,17 @@ int main(int argc, char **argv) {
         qlf->set_sample_period(timeFromUs(10.0));
     }
 #ifdef FAT_TREE
-    FatTreeTopology::set_tiers(tiers);
-    FatTreeTopology* top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 
-                                               &eventlist, NULL, qt, hop_latency,
-                                               switch_latency,
-                                               snd_type);
+    FatTreeTopology* top;
+    if (topo_file) {
+        top = FatTreeTopology::load(topo_file, qlf, eventlist, queuesize, qt, snd_type);
+    } else {
+        FatTreeTopology::set_tiers(tiers);
+        top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 
+                                  &eventlist, NULL, qt, hop_latency,
+                                  switch_latency,
+                                  snd_type);
+    }
+        
 #endif
 
 #ifdef OV_FAT_TREE
@@ -542,7 +553,7 @@ int main(int argc, char **argv) {
         pacers.push_back(new NdpPullPacer(eventlist,  linkspeed, 0.99));   
 
     // used just to print out stats data at the end
-    //list <const Route*> routes;
+    list <const Route*> routes;
 
     vector<connection*>* all_conns = conns->getAllConnections();
     vector <NdpSrc*> ndp_srcs;
@@ -561,9 +572,9 @@ int main(int argc, char **argv) {
             vector<const Route*>* paths = top->get_bidir_paths(src,dest,false);
             net_paths[src][dest] = paths;
             /*
-              for (unsigned int i = 0; i < paths->size(); i++) {
+            for (unsigned int i = 0; i < paths->size(); i++) {
               routes.push_back((*paths)[i]);
-              }
+            }
             */
         }
         if (!net_paths[dest][src]
@@ -572,6 +583,11 @@ int main(int argc, char **argv) {
             && route_strategy!=REACTIVE_ECN ) {
             vector<const Route*>* paths = top->get_bidir_paths(dest,src,false);
             net_paths[dest][src] = paths;
+            /*
+            for (unsigned int i = 0; i < paths->size(); i++) {
+              routes.push_back((*paths)[i]);
+            }
+            */
         }
     }
 
@@ -611,7 +627,7 @@ int main(int argc, char **argv) {
                         
         ndpSrc->setName("ndp_" + ntoa(src) + "_" + ntoa(dest));
 
-        cout << "ndp_" + ntoa(src) + "_" + ntoa(dest) << endl;
+        //cout << "ndp_" + ntoa(src) + "_" + ntoa(dest) << endl;
         logfile.writeName(*ndpSrc);
 
         ndpSnk->set_src(src);
@@ -641,14 +657,14 @@ int main(int argc, char **argv) {
         case REACTIVE_ECN:
             {
                 Route* srctotor = new Route();
-                srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-                srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-                srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+                srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]);
+                srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]);
+                srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)][0]->getRemoteEndpoint());
 
                 Route* dsttotor = new Route();
-                dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-                dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-                dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+                dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]);
+                dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]);
+                dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)][0]->getRemoteEndpoint());
 
 
                 ndpSrc->connect(srctotor, dsttotor, *ndpSnk, crt->start);
@@ -737,28 +753,29 @@ int main(int argc, char **argv) {
         bounce_pkts += ndp_srcs[ix]->_bounces_received;
     }
     cout << "New: " << new_pkts << " Rtx: " << rtx_pkts << " Bounced: " << bounce_pkts << endl;
-
-    /*list <const Route*>::iterator rt_i;
-      int counts[10]; int hop;
-      for (int i = 0; i < 10; i++)
-      counts[i] = 0;
-      for (rt_i = routes.begin(); rt_i != routes.end(); rt_i++) {
-      const Route* r = (*rt_i);
-      //print_route(*r);
-      #ifdef PRINTPATHS
-      cout << "Path:" << endl;
-      #endif
-      hop = 0;
-      for (int i = 0; i < r->size(); i++) {
-      PacketSink *ps = r->at(i); 
-      CompositeQueue *q = dynamic_cast<CompositeQueue*>(ps);
-      if (q == 0) {
-      #ifdef PRINTPATHS
-      cout << ps->nodename() << endl;
-      #endif
-      } else {
-      #ifdef PRINTPATHS
-      cout << q->nodename() << " id=" << q->id << " " << q->num_packets() << "pkts " 
+    /*
+    list <const Route*>::iterator rt_i;
+    int counts[10]; int hop;
+    for (int i = 0; i < 10; i++)
+        counts[i] = 0;
+    cout << "route count: " << routes.size() << endl;
+    for (rt_i = routes.begin(); rt_i != routes.end(); rt_i++) {
+        const Route* r = (*rt_i);
+        //print_route(*r);
+#ifdef PRINTPATHS
+        cout << "Path:" << endl;
+#endif
+        hop = 0;
+        for (int i = 0; i < r->size(); i++) {
+            PacketSink *ps = r->at(i); 
+            CompositeQueue *q = dynamic_cast<CompositeQueue*>(ps);
+            if (q == 0) {
+#ifdef PRINTPATHS
+                cout << ps->nodename() << endl;
+#endif
+            } else {
+#ifdef PRINTPATHS
+                cout << q->nodename() << " " << q->num_packets() << "pkts " 
                      << q->num_headers() << "hdrs " << q->num_acks() << "acks " << q->num_nacks() << "nacks " << q->num_stripped() << "stripped"
                      << endl;
 #endif
@@ -771,7 +788,7 @@ int main(int argc, char **argv) {
 #endif
     }
     for (int i = 0; i < 10; i++)
-    cout << "Hop " << i << " Count " << counts[i] << endl;*/
-        
+        cout << "Hop " << i << " Count " << counts[i] << endl;
+    */  
 }
 
