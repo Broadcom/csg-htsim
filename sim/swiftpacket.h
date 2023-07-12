@@ -40,7 +40,7 @@ public:
     inline seq_t dsn() const {return _dsn;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
-    virtual PktPriority priority() const {return Packet::PRIO_NONE;}  // change this if you want to use swift with priority queues
+    virtual PktPriority priority() const {return Packet::PRIO_LO;}  // change this if you want to use swift with priority queues
 
 protected:
     seq_t _seqno;
@@ -72,7 +72,7 @@ public:
     inline seq_t ackno() const {return _ackno;}
     inline seq_t ds_ackno() const {return _ds_ackno;}
     inline simtime_picosec ts_echo() const {return _ts_echo;}
-    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
+    virtual PktPriority priority() const {return Packet::PRIO_HI;}
 
     virtual ~SwiftAck(){}
     const static int ACKSIZE=40;
