@@ -450,7 +450,9 @@ STrackSrc::receivePacket(Packet& pkt)
     }else{
         _next_pathid = pathid_echo;
     }
-
+    if (_flow.flow_id() == 1000001895  || _flow.flow_id() == 1000004004){
+        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " rtt " << timeAsUs(eventlist().now() - ts_echo) << " marked " << p->ecn_echo() <<" ts_start " << timeAsUs(ts_echo) << endl;
+    }
     p->free();
 
     if (ackno < _last_acked) {

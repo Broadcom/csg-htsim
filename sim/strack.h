@@ -14,6 +14,7 @@
 #include "swift_scheduler.h"
 #include "eventlist.h"
 #include "sent_packets.h"
+#include "trigger.h"
 
 //#define MODEL_RECEIVE_WINDOW 1
 
@@ -39,7 +40,7 @@ private:
     simtime_picosec _next_send;  // when the next scheduled packet should be sent
 };
 
-class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
+class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc, public TriggerTarget {
     friend class STrackSink;
     friend class STrackRtxTimerScanner;
     //friend class STrackSubflowSrc;
@@ -154,6 +155,11 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     int choose_route();
     void permute_sequence(vector<int>& seq);
     void count_ecn(int32_t path_id, int skip_rounds);
+    inline void set_end_trigger(Trigger& trigger){_end_trigger = &trigger;};
+    // called from a trigger to start the flow.
+    virtual void activate() {
+        startflow();
+    }
 
     static RouteStrategy _route_strategy;
     static uint32_t _path_entropy_size; // now many paths do we include in our path set
@@ -162,6 +168,9 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc {
     uint16_t _crt_path;
     vector<int> _path_ids;
     vector<uint16_t> _path_ecns; //keeps path scores
+    Trigger* _end_trigger;
+
+
 
 protected:
     // connection state

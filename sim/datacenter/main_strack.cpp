@@ -618,6 +618,15 @@ int main(int argc, char **argv) {
             cout << " set flow size " << crt->size << endl;
             strackSrc->set_flowsize(crt->size);
         }
+        if (crt->trigger) {
+            Trigger* trig = conns->getTrigger(crt->trigger, eventlist);
+            trig->add_target(*strackSrc);
+        }
+
+        if (crt->send_done_trigger) {
+            Trigger* trig = conns->getTrigger(crt->send_done_trigger, eventlist);
+            strackSrc->set_end_trigger(*trig);
+        }
 
         strackSnk = new STrackSink();
         strackSnk->setName("STRACKSink"+ntoa(c)); logfile.writeName(*strackSnk);
@@ -638,7 +647,7 @@ int main(int argc, char **argv) {
                
 
 
-        sinkLogger.monitorSink(strackSnk);
+        // sinkLogger.monitorSink(strackSnk);
         switch (route_strategy) {
         case SCATTER_PERMUTE:
         case SCATTER_RANDOM:

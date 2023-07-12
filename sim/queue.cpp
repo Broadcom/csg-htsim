@@ -587,6 +587,11 @@ FairPriorityQueue::completeService()
 
         _sending = NULL;
 
+        //yanfang
+        if (pkt->type() == STRACK){
+            STrackPacket *strackpkt = (STrackPacket*)pkt;
+            strackpkt->set_ts(eventlist().now());
+        }
         pkt->flow().logTraffic(*pkt, *this, TrafficLogger::PKT_DEPART);
         if (_logger) _logger->logQueue(*this, QueueLogger::PKT_SERVICE, *pkt);
 
