@@ -443,7 +443,8 @@ STrackSrc::receivePacket(Packet& pkt)
   
     ts_echo = p->ts_echo();
     assert(_paths.size() > 0);
-    int skip_rounds = (_default_cwnd/_mss )/(_paths.size()); //1 ; //(eventlist().now() - ts_echo)/_base_rtt;
+    int skip_rounds =  (_default_cwnd/_mss )/(_paths.size()); //1 ; //(eventlist().now() - ts_echo)/_base_rtt;
+    skip_rounds = std::max(1, skip_rounds);
     int32_t pathid_echo = p->pathid_echo();
     if (p->ecn_echo()) {
         count_ecn(pathid_echo, skip_rounds);
