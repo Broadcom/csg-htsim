@@ -90,6 +90,8 @@ CtrlPrioQueue::doNextEvent() {
 
 CtrlPrioQueue::queue_priority_t 
 CtrlPrioQueue::getPriority(Packet& pkt) {
+    Packet::PktPriority pktprio = pkt.priority();
+    /*    
     queue_priority_t prio = Q_LO;
     switch (pkt.type()) {
     case TCPACK:
@@ -116,7 +118,24 @@ CtrlPrioQueue::getPriority(Packet& pkt) {
     default:
         abort();
     }
-    return prio;
+    */
+    switch (pktprio) {
+    case Packet::PRIO_LO:
+        return Q_LO;
+    case Packet::PRIO_MID:
+        // this queue supports two priorities - if you want three, use
+        // a different queue, or change the packet to saw if it wants
+        // LO or HI priority
+        abort(); 
+    case Packet::PRIO_HI:
+        return Q_HI;
+    case Packet::PRIO_NONE:
+        // this packet didn't expect to see a priority queue - change
+        // the packet to say what service it wants
+        abort(); 
+    }
+    // can't get here
+    abort();
 }
 
 void
