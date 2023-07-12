@@ -442,7 +442,7 @@ STrackSrc::receivePacket(Packet& pkt)
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_RCVDESTROY);
   
     ts_echo = p->ts_echo();
-    int skip_rounds = (eventlist().now() - ts_echo)/_base_rtt;
+    int skip_rounds = 1 ; //(eventlist().now() - ts_echo)/_base_rtt;
     int32_t pathid_echo = p->pathid_echo();
     if (p->ecn_echo()) {
         count_ecn(pathid_echo, skip_rounds);
