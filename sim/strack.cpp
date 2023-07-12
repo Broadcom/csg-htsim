@@ -4,7 +4,7 @@
 #include <math.h>
 
 #define KILL_THRESHOLD 5
-uint32_t STrackSrc::_default_cwnd = 12;
+uint32_t STrackSrc::_default_cwnd = 50;
 
 RouteStrategy STrackSrc::_route_strategy = NOT_SET;
 RouteStrategy STrackSink::_route_strategy = NOT_SET;
@@ -442,7 +442,8 @@ STrackSrc::receivePacket(Packet& pkt)
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_RCVDESTROY);
   
     ts_echo = p->ts_echo();
-    int skip_rounds = 1 ; //(eventlist().now() - ts_echo)/_base_rtt;
+    assert(_paths.size() > 0);
+    int skip_rounds = (_default_cwnd/_mss )/(_paths.size()); //1 ; //(eventlist().now() - ts_echo)/_base_rtt;
     int32_t pathid_echo = p->pathid_echo();
     if (p->ecn_echo()) {
         count_ecn(pathid_echo, skip_rounds);
@@ -451,7 +452,8 @@ STrackSrc::receivePacket(Packet& pkt)
         _next_pathid = pathid_echo;
     }
     if (_flow.flow_id() == 1000001895  || _flow.flow_id() == 1000004004){
-        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " rtt " << timeAsUs(eventlist().now() - ts_echo) << " marked " << p->ecn_echo() <<" ts_start " << timeAsUs(ts_echo) << endl;
+        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " rtt " << timeAsUs(eventlist().now() - ts_echo) << " marked " << p->ecn_echo() ;
+        cout <<" ts_start " << timeAsUs(ts_echo)<< " skip_rounds "<< skip_rounds << endl;
     }
     p->free();
 
