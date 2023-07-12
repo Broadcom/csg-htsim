@@ -59,6 +59,9 @@ class LosslessInputQueue;
 class Packet {
     friend class PacketFlow;
  public:
+    // use PRIO_NONE if the packet is never expected to encounter a priority queue, otherwise default to PRIO_LO
+    typedef enum {PRIO_LO, PRIO_MID, PRIO_HI, PRIO_NONE} PktPriority;
+    
     /* empty constructor; Packet::set must always be called as
        well. It's a separate method, for convenient reuse */
     Packet() {_is_header = false; _bounced = false; _type = IP; _flags = 0; _refcount = 0; _dst = UINT32_MAX; _pathid = UINT32_MAX; _direction = NONE; _ingressqueue = NULL;} 
@@ -126,6 +129,8 @@ class Packet {
             abort();
         }
     }
+
+    virtual PktPriority priority() const = 0;
 
     virtual packet_direction get_direction() {return _direction;}
 

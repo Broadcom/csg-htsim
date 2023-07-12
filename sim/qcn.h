@@ -37,6 +37,7 @@ public:
 
     virtual ~QcnPacket(){};
     void free() {_packetdb.freePacket(this);}
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;} // change this if you want to use QCN packets with priority queues
     const static int PKTSIZE;
 protected:
     routes_t* _routesback;
@@ -60,6 +61,7 @@ public:
     }
     virtual ~QcnAck(){};
     void free() {_packetdb.freePacket(this);}
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
     const static int ACK_SIZE;
     PacketSink* sendOn() { 
         assert(_nexthop<=_route->size());

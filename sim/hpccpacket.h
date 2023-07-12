@@ -79,7 +79,7 @@ public:
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
     inline uint32_t path_id() const {if (_pathid!=UINT32_MAX) return _pathid; else return _route->path_id();}
-
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
     IntEntry _int_info[5];
     uint32_t _int_hop;
 
@@ -117,6 +117,7 @@ public:
     inline seq_t ackno() const {return _ackno;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
   
     virtual ~HPCCAck(){}
 
@@ -151,6 +152,7 @@ public:
     inline seq_t ackno() const {return _ackno;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
   
     virtual ~HPCCNack(){}
 

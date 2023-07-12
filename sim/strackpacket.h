@@ -1,3 +1,4 @@
+
 // -*- c-basic-offset: 4; indent-tabs-mode: nil -*- 
 #ifndef STRACKPACKET_H
 #define STRACKPACKET_H
@@ -38,6 +39,7 @@ public:
     inline seq_t seqno() const {return _seqno;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
 protected:
     seq_t _seqno;
     bool _syn;
@@ -65,6 +67,7 @@ public:
     inline seq_t seqno() const {return _seqno;}
     inline seq_t ackno() const {return _ackno;}
     inline simtime_picosec ts_echo() const {return _ts_echo;}
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
 
     virtual ~STrackAck(){}
     const static int ACKSIZE=40;

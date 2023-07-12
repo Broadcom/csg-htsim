@@ -1,3 +1,4 @@
+
 // -*- c-basic-offset: 4; indent-tabs-mode: nil -*- 
 #ifndef NDPPACKET_H
 #define NDPPACKET_H
@@ -95,6 +96,13 @@ public:
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
     inline int32_t path_id() const {if (_pathid!=UINT32_MAX) return _pathid; else return _route->path_id();}
     inline int32_t no_of_paths() const {return _no_of_paths;}
+    virtual PktPriority priority() const {
+        if (_is_header) {
+            return Packet::PRIO_HI;
+        } else {
+            return Packet::PRIO_HI;
+        }
+    }
 
 protected:
     seq_t _seqno;
@@ -151,6 +159,7 @@ public:
     inline void dont_pull() {_pull = false; _pullno = 0;}
     inline void set_ecn_echo(bool ecn_echo) {_ecn_echo = ecn_echo;}
     inline bool ecn_echo() const {return _ecn_echo;}
+    virtual PktPriority priority() const {return Packet::PRIO_HI;}
   
     virtual ~NdpAck(){}
 
@@ -207,6 +216,7 @@ public:
     inline void dont_pull() {_pull = false; _pullno = 0;}
     inline void set_ecn_echo(bool ecn_echo) {_ecn_echo = ecn_echo;}
     inline bool ecn_echo() const {return _ecn_echo;}
+    virtual PktPriority priority() const {return Packet::PRIO_LO;}
   
     virtual ~NdpNack(){}
 
@@ -262,6 +272,7 @@ public:
     int32_t path_id() const {return _path_id;}
 
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_HI;}
     
     virtual ~NdpRTS(){}
 
@@ -380,6 +391,7 @@ public:
     inline seq_t cumulative_ack() const {return _cumulative_ack;}
     inline seq_t pullno() const {return _pullno;}
     int32_t path_id() const {return _path_id;}
+    virtual PktPriority priority() const {return Packet::PRIO_HI;}
   
     virtual ~NdpPull(){}
 

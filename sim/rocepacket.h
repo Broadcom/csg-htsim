@@ -65,6 +65,7 @@ class RocePacket : public Packet {
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
     inline uint32_t path_id() const {if (_pathid!=UINT32_MAX) return _pathid; else return _route->path_id();}
+    virtual PktPriority priority() const {return Packet::PRIO_LO;}
 
  protected:
     seq_t _seqno;
@@ -96,6 +97,7 @@ class RoceAck : public Packet {
     inline seq_t ackno() const {return _ackno;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_HI;}
   
     virtual ~RoceAck(){}
 
@@ -127,6 +129,7 @@ class RoceNack : public Packet {
     inline seq_t ackno() const {return _ackno;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_HI;}
   
     virtual ~RoceNack(){}
 

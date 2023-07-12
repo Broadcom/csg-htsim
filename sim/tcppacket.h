@@ -45,6 +45,7 @@ public:
     inline seq_t data_seqno() const {return _data_seqno;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_LO;}
 protected:
     seq_t _seqno,_data_seqno;
     bool _syn;
@@ -79,6 +80,7 @@ public:
     inline seq_t data_ackno() const {return _data_ackno;}
     inline simtime_picosec ts() const {return _ts;}
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
+    virtual PktPriority priority() const {return Packet::PRIO_HI;}
 
     virtual ~TcpAck(){}
     const static int ACKSIZE=40;

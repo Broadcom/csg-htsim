@@ -26,6 +26,7 @@ class EthPausePacket : public Packet {
         return p;
     }
   
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;} // This shouldn't encounter a priority queue
     void free() {_packetdb.freePacket(this);}
     virtual ~EthPausePacket(){}
 
