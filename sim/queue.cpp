@@ -220,42 +220,19 @@ PriorityQueue::PriorityQueue(linkspeed_bps bitrate, mem_b maxsize,
 
 PriorityQueue::queue_priority_t 
 PriorityQueue::getPriority(Packet& pkt) {
-    queue_priority_t prio = Q_LO;
-    switch (pkt.type()) {
-    case TCPACK:
-    case NDPACK:
-    case NDPNACK:
-    case NDPPULL:
-    case NDPRTS:
-    case NDPLITEACK:
-    case NDPLITERTS:
-    case NDPLITEPULL:
-    case ROCEACK:
-    case ROCENACK:
-        prio = Q_HI;
-        break;
-    case NDP:
-        if (pkt.header_only()) {
-            prio = Q_HI;
-        } else {
-            NdpPacket* np = (NdpPacket*)(&pkt);
-            if (np->retransmitted()) {
-                prio = Q_MID;
-            } else {
-                prio = Q_LO;
-            }
-        }
-        break;
-    case TCP:
-    case IP:
-    case NDPLITE:
-    case ROCE:
-        prio = Q_LO;
-        break;
-    default:
+    switch (pkt.priority()) {
+    case Packet::PRIO_LO:
+        return Q_LO;
+    case Packet::PRIO_MID:
+        return Q_MID;
+    case Packet::PRIO_HI:
+        return Q_HI;
+    case Packet::PRIO_NONE:
+        // The packet didn't expect to see a priority queue.  Change
+        // the packet to say what queue service it desires.
         abort();
     }
-    return prio;
+        
 }
 
 simtime_picosec
@@ -415,47 +392,18 @@ FairPriorityQueue::FairPriorityQueue(linkspeed_bps bitrate, mem_b maxsize,
 
 FairPriorityQueue::queue_priority_t 
 FairPriorityQueue::getPriority(Packet& pkt) {
-    queue_priority_t prio = Q_LO;
-    switch (pkt.type()) {
-    case TCPACK:
-    case NDPACK:
-    case NDPNACK:
-    case NDPPULL:
-    case NDPRTS:
-    case NDPLITEACK:
-    case NDPLITERTS:
-    case NDPLITEPULL:
-    case SWIFTACK:
-    case ROCEACK:
-    case ROCENACK:
-    case HPCCNACK:
-    case HPCCACK:
-        prio = Q_HI;
-        break;
-    case NDP:
-        if (pkt.header_only()) {
-            prio = Q_HI;
-        } else {
-            NdpPacket* np = (NdpPacket*)(&pkt);
-            if (np->retransmitted()) {
-                prio = Q_MID;
-            } else {
-                prio = Q_LO;
-            }
-        }
-        break;
-    case TCP:
-    case IP:
-    case NDPLITE:
-    case SWIFT:
-    case ROCE:
-    case HPCC:
-        prio = Q_LO;
-        break;
-    default:
+    switch (pkt.priority()) {
+    case Packet::PRIO_LO:
+        return Q_LO;
+    case Packet::PRIO_MID:
+        return Q_MID;
+    case Packet::PRIO_HI:
+        return Q_HI;
+    case Packet::PRIO_NONE:
+        // The packet didn't expect to see a priority queue.  Change
+        // the packet to say what queue service it desires.
         abort();
     }
-    return prio;
 }
 
 //this is inaccurate!

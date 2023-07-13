@@ -91,34 +91,6 @@ CtrlPrioQueue::doNextEvent() {
 CtrlPrioQueue::queue_priority_t 
 CtrlPrioQueue::getPriority(Packet& pkt) {
     Packet::PktPriority pktprio = pkt.priority();
-    /*    
-    queue_priority_t prio = Q_LO;
-    switch (pkt.type()) {
-    case TCPACK:
-    case NDPACK:
-    case NDPNACK:
-    case NDPPULL:
-    case NDPLITEACK:
-    case NDPLITERTS:
-    case NDPLITEPULL:
-        prio = Q_HI;
-        break;
-    case NDP:
-        if (pkt.header_only()) {
-            prio = Q_HI;
-        } else {
-            prio = Q_LO;
-        }
-        break;
-    case TCP:
-    case IP:
-    case NDPLITE:
-        prio = Q_LO;
-        break;
-    default:
-        abort();
-    }
-    */
     switch (pktprio) {
     case Packet::PRIO_LO:
         return Q_LO;
