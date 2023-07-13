@@ -19,7 +19,7 @@ public:
     virtual inline void  strip_payload() {
         Packet::strip_payload(); _size = ACKSIZE;
     };
-  
+    virtual PktPriority priority() const {return Packet::PRIO_NONE;}
     void free() {_packetdb.freePacket(this);}
     virtual ~CbrPacket(){};
 };

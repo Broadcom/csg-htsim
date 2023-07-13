@@ -100,7 +100,7 @@ public:
         if (_is_header) {
             return Packet::PRIO_HI;
         } else {
-            return Packet::PRIO_HI;
+            return Packet::PRIO_LO;
         }
     }
 

@@ -93,7 +93,14 @@ public:
     inline int32_t no_of_paths() const {return _no_of_paths;}
 
     inline Packet* inner_packet(){ return _encap_packet;}
-
+    virtual PktPriority priority() const {
+        if (_is_header) {
+            return Packet::PRIO_HI;
+        } else {
+            return Packet::PRIO_LO;
+        }
+    }
+    
 protected:
     seq_t _seqno;
     seq_t _pacerno;  // the pacer sequence number from the pull, seq space is common to all flows on that pacer
