@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
     //  numbers are fwd + 10.  Queue numbers are the pipes they feed.
                                                
     Pipe *pipe[20];
-    Queue *queue[20];
+    BaseQueue *queue[20];
     simtime_picosec LINK_DELAY = RTT1/4;
     // we may not use all of these...
     for (int i = 0; i < 20; i++) {
@@ -128,7 +128,10 @@ int main(int argc, char **argv) {
 
         QueueLoggerSampling *ql = NULL;
         if (i == 3) ql = &queueLogger;  // only log queue[3] as that's the bottleneck queue
-        queue[i] = new Queue(SERVICE1, BUFFER, eventlist, ql);
+        if (i == 0 || i == 13)
+            queue[i] = new FairScheduler(SERVICE1, eventlist, NULL);
+        else
+            queue[i] = new Queue(SERVICE1, BUFFER, eventlist, ql);
         s = "queue" + std::to_string(i);
         queue[i]->setName(s);
         logfile.writeName(*queue[i]);

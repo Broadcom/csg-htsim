@@ -1,5 +1,5 @@
 SUBDIRS=tests datacenter
-OBJS=eventlist.o tcppacket.o pipe.o queue.o meter.o queue_lossless.o queue_lossless_input.o queue_lossless_output.o ecnqueue.o tcp.o dctcp.o mtcp.o loggers.o logfile.o clock.o config.o network.o qcn.o exoqueue.o randomqueue.o cbr.o cbrpacket.o sent_packets.o ndp.o ndptunnel.o ndppacket.o roce.o rocepacket.o eth_pause_packet.o tcp_transfer.o tcp_periodic.o compositequeue.o prioqueue.o cpqueue.o ndp_transfer.o compositeprioqueue.o switch.o dctcp_transfer.o fairpullqueue.o route.o callback_pipe.o ndptunnelpacket.o swiftpacket.o swift.o swift_scheduler.o routetable.o trigger.o hpccpacket.o hpcc.o strackpacket.o strack.o priopullqueue.o
+OBJS=eventlist.o tcppacket.o pipe.o queue.o meter.o queue_lossless.o queue_lossless_input.o queue_lossless_output.o ecnqueue.o tcp.o dctcp.o mtcp.o loggers.o logfile.o clock.o config.o network.o qcn.o exoqueue.o randomqueue.o cbr.o cbrpacket.o sent_packets.o ndp.o ndptunnel.o ndppacket.o roce.o rocepacket.o eth_pause_packet.o tcp_transfer.o tcp_periodic.o compositequeue.o prioqueue.o cpqueue.o ndp_transfer.o compositeprioqueue.o switch.o dctcp_transfer.o fairpullqueue.o route.o callback_pipe.o ndptunnelpacket.o swiftpacket.o swift.o swift_scheduler.o routetable.o trigger.o hpccpacket.o hpcc.o strackpacket.o strack.o priopullqueue.o rng.o
 HDRS=network.h ndp.h ndptunnel.h queue_lossless.h queue_lossless_input.h queue_lossless_output.h compositequeue.h prioqueue.h cpqueue.h queue.h loggers.h loggertypes.h pipe.h eventlist.h config.h tcp.h dctcp.h mtcp.h sent_packets.h tcppacket.h ndppacket.h rocepacket.h eth_pause_packet.h ndp_transfer.h compositeprioqueue.h ecnqueue.h switch.h dctcp_transfer.h callback_pipe.h meter.h ndptunnelpacket.h swiftpacket.h swift.h swift_scheduler.h routetable.h circular_buffer.h trigger.h hpccpacket.h hpcc.h strackpacket.h strack.h priopullqueue.h
 
 CC=g++
@@ -61,7 +61,7 @@ htsim_dumbell_ndptunnel:	$(OBJS) main_dumbell_ndptunnel.o
 
 
 clean:	
-	rm -f *.o htsim htsim_* libhtsim.a parse_output
+	rm -f *.o htsim htsim_* libhtsim.a parse_output datacenter/*.o datacenter/htsim_* tests/*.o tests/htsim_*
 parse_output.o: parse_output.cpp libhtsim.a
 config.o:	config.cpp config.h
 switch.o: 	switch.cpp switch.h drawable.h
@@ -104,9 +104,9 @@ faircompositequeue.o: faircompositequeue.cpp $(HDRS)
 prioqueue.o: prioqueue.cpp $(HDRS)
 cpqueue.o: cpqueue.cpp $(HDRS)
 compositeprioqueue.o: compositeprioqueue.cpp $(HDRS)
-ndp_transfer.o: ndp_transfer.cpp $(HRDS)
-roce.o: roce.cpp $(HRDS)
-hpcc.o: hpcc.cpp $(HRDS)
+ndp_transfer.o: ndp_transfer.cpp $(HDRS)
+roce.o: roce.cpp $(HDRS)
+hpcc.o: hpcc.cpp $(HDRS)
 qcn.o: qcn.cpp qcn.h loggers.h config.h 
 
 .cpp.o:

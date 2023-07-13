@@ -46,9 +46,12 @@ public:
         _flow_size = flow_size_in_bytes+_mss;
         cout << "Setting flow size to " << _flow_size << endl;
     }
-
+    flowid_t getFlowId() {return _flow.flow_id();}
+    
     void set_ssthresh(uint64_t s){_ssthresh = s;}
     void set_cwnd(uint64_t s){_cwnd = s;}
+    void set_dst(int d){_dst=d;}
+    int  get_dst(){return _dst;}
 
     uint32_t effective_window();
     virtual void rtx_timer_hook(simtime_picosec now,simtime_picosec period);
@@ -88,6 +91,7 @@ public:
     uint32_t _drops;
 
     TcpSink* _sink;
+    int _dst{-1};
     MultipathTcpSrc* _mSrc;
     simtime_picosec _RFC2988_RTO_timeout;
     bool _rtx_timeout_pending;
@@ -139,7 +143,8 @@ class TcpSink : public PacketSink, public DataReceiver {
     friend class TcpSrc;
 public:
     TcpSink();
-
+    void set_dst(int d) {_dst=d;}
+    int  get_dst() {return _dst;}    
     inline void joinMultipathConnection(MultipathTcpSink* multipathSink){
         _mSink = multipathSink;
     };
@@ -163,6 +168,7 @@ public:
 #endif
 
     TcpSrc* _src;
+    int _dst{-1};
 private:
     // Connectivity
     uint16_t _crt_path;

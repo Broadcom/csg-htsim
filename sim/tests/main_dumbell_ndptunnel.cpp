@@ -22,7 +22,19 @@ int main(int argc, char **argv) {
     eventlist.setEndtime(timeFromSec(5));
     Clock c(timeFromSec(50/100.), eventlist);
 
-    srand(time(NULL));
+    unsigned seed = time(NULL);
+
+    int i = 1;
+    while (i < argc) {
+        if (!strcmp(argv[i], "-seed")) {
+            seed = atoi(argv[i + 1]);
+            cout << "random seed " << seed << endl;
+            i++;
+        }
+        i++;
+    }
+
+    srand(seed);
 
     Packet::set_packet_size(9000);    
     linkspeed_bps SERVICE1 = speedFromMbps((uint64_t)10000);

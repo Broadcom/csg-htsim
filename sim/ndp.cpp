@@ -88,6 +88,7 @@ NdpSrc::NdpSrc(NdpLogger* logger, TrafficLogger* pktlogger, EventList &eventlist
     _drops = 0;
     _flow_size = ((uint64_t)1)<<63;
     _last_pull = 0;
+    _max_pull = 0;
     _pull_window = 0;
   
     _crt_path = 0; // used for SCATTER_PERMUTE route strategy
@@ -562,8 +563,9 @@ void NdpSrc::processNack(const NdpNack& nack){
     p->flow().logTraffic(*p,*this,TrafficLogger::PKT_CREATE);
     _rtx_queue[seqno] = p;
 
-    if (nack.pull()) {
-        _implicit_pulls++;
+    if (nack.pull() || _last_pull < _max_pull) {
+        if (nack.pull())
+            _implicit_pulls++;
         pull_packets(nack.pullno(), nack.pacerno());
     }
 }
@@ -857,22 +859,26 @@ void NdpSrc::pull_packets(NdpPull::seq_t pull_no, NdpPull::seq_t pacer_no) {
     // Pull number is cumulative both to allow for lost pulls and to
     // reduce reverse-path RTT - if one pull is delayed on one path, a
     // pull that gets there faster on another path can supercede it
-    //cout << "Last pull " << _last_pull << " pull no " << pull_no << endl;
-    while (_last_pull < pull_no) {
-        send_packet(pacer_no);
-        //cout << "Sending packet out" << endl;
-        _last_pull++;
+    //cout << "Last pull " << _last_pull << " pull no " << pull_no << " max pull " << _max_pull << endl;
+    if (pull_no > _max_pull)
+        _max_pull = pull_no;
+    while (_last_pull < _max_pull) {
+        int sent = send_packet(pacer_no);
+        //cout << "Sending packet out, sent=" << sent << " last=" << _last_pull << " max=" << _max_pull << endl;
+        _last_pull += sent;
+        if (sent == 0) {
+            break;
+        }
     }
 }
 
 // Note: the data sequence number is the number of Byte1 of the packet, not the last byte.
-void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
+int NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
     NdpPacket* p = NULL;
+    int packets_sent = 0;
     if (!_rtx_queue.empty()) {
         // There are packets in the RTX queue for us to send
 
-        //p = _rtx_queue.front();
-        //_rtx_queue.pop_front();
         p = _rtx_queue.begin()->second;
         _rtx_queue.erase(_rtx_queue.begin());
         p->flow().logTraffic(*p,*this,TrafficLogger::PKT_SEND);
@@ -905,6 +911,7 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
 #endif
         }
         PacketSink* sink = p->sendOn();
+        packets_sent++;
         HostQueue *q = dynamic_cast<HostQueue*>(sink);
         assert(q);
         //Figure out how long before the feeder queue sends this
@@ -929,7 +936,7 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
                 /* we've sent enough new data. */
                 /* xxx should really make the last packet sent be the right size
                  * if _flow_size is not a multiple of _mss */
-                return;
+                return packets_sent;
             } 
             if (_highest_sent + _mss >= _flow_size) {
                 last_packet = true;
@@ -990,8 +997,8 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
         _new_packets_sent++;
 
         PacketSink* sink = p->sendOn();
-
-        HostQueue *q = dynamic_cast<HostQueue*>(sink);
+        packets_sent++; 
+       HostQueue *q = dynamic_cast<HostQueue*>(sink);
         assert(q);
         //Figure out how long before the feeder queue sends this
         //packet, and add it to the sent time. Packets can spend quite
@@ -1008,6 +1015,7 @@ void NdpSrc::send_packet(NdpPull::seq_t pacer_no) {
             _rtx_timeout = eventlist().now() + _rto;
         }
     }
+    return packets_sent;
 }
 
 void 

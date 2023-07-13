@@ -50,6 +50,19 @@ htsim_dumbell_ndptunnel:	main_dumbell_ndptunnel.o $(LIBDEP)
 htsim_trigger_test:	main_trigger_test.o $(LIBDEP)
 	$(CC) $(CFLAGS) main_trigger_test.o -o htsim_trigger_test $(LIBS)
 
+RUN_TESTS_0 = ./tests.py
+RUN_TESTS_1 = ./tests.py -v
+V ?= 0
+
+.PHONY: run
+run: all
+	$(RUN_TESTS_$(V))
+
+.PHONY: update_refs
+update_refs: all
+	$(RUN_TESTS_$(V)) -u
+
+
 clean:	
 	rm -f *.o htsim_*
 
