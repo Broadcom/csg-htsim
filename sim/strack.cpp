@@ -115,15 +115,16 @@ STrackSrc::adjust_cwnd(simtime_picosec delay, STrackAck::seq_t ackno) {
     // strack init
     _prev_cwnd = _strack_cwnd;
     simtime_picosec now = eventlist().now(); 
-    _can_decrease = (now - _last_decrease) >= _rtt;  // not clear if we should use smoothed RTT here.
-
+    // _can_decrease = (now - _last_decrease) >= _rtt;  // not clear if we should use smoothed RTT here.
+     _can_decrease = (now - _last_decrease) >= _base_rtt;
     //compute rtt
-    update_rtt(delay);
+    // update_rtt(delay);
 
     // STrack cwnd calculation.  Doing this here does it for every ack, no matter if we're in fast recovery or not.  Need to be careful.
     simtime_picosec target_delay = targetDelay(*_route);
     if (delay < target_delay) {
-        _strack_cwnd = _alpha * (target_delay - _rtt) / _strack_cwnd;
+        // _strack_cwnd = _alpha * (target_delay - _rtt) / _strack_cwnd;
+        _strack_cwnd += _alpha * (target_delay - delay) / _strack_cwnd;
     } else if (_can_decrease) {
         // don't decrease more than once per RTT
         if (delay > target_delay * 2 && _achieved_BDP > 0) {
@@ -149,12 +150,12 @@ STrackSrc::applySTrackLimits() {
     if (_strack_cwnd < _prev_cwnd) {
         _last_decrease = eventlist().now();
     }
-    if (_strack_cwnd < mss()) {
-        _pacing_delay = (_rtt * mss())/_strack_cwnd;
-        //cout << "strack_cwnd " << ((double)_sub->_strack_cwnd)/_mss << " pacing " << timeAsUs(_pacing_delay) << "us" << endl; 
-    } else {
-        _pacing_delay = 0;
-    }
+    // if (_strack_cwnd < mss()) {
+    //     _pacing_delay = (_rtt * mss())/_strack_cwnd;
+    //     //cout << "strack_cwnd " << ((double)_sub->_strack_cwnd)/_mss << " pacing " << timeAsUs(_pacing_delay) << "us" << endl; 
+    // } else {
+    //     _pacing_delay = 0;
+    // }
 }
 
 void
@@ -496,7 +497,7 @@ STrackSrc::receivePacket(Packet& pkt)
     assert(ackno >= _last_acked);  // no dups or reordering allowed in this simple simulator
     simtime_picosec delay = eventlist().now() - ts_echo;
     //Yanfang: remove window adjustment
-    // adjust_cwnd(delay, ackno);
+    adjust_cwnd(delay, ackno);
 
     
     handle_ack(ackno);
