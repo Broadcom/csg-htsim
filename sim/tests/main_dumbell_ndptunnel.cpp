@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
         routeout->push_back(ndpSnk);
         
         routein  = new route_t();
-        routein->push_back(&pipe1);
+        routein->push_back(&pipe2);
         routein->push_back(ndpSrc); 
 
         ndpSrc->connect(*routeout, *routein, *ndpSnk,0);

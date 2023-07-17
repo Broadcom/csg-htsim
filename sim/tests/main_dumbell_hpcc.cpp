@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
         routeout->push_back(snk);
         
         routein  = new route_t();
-        routein->push_back(&pipe1);
+        routein->push_back(&pipe2);
         routein->push_back(src); 
 
         src->connect(routeout, routein, *snk,0);

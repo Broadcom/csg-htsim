@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
         routeout->push_back(roceSnk);
         
         routein  = new route_t();
-        routein->push_back(&pipe1);
+        routein->push_back(&pipe2);
         routein->push_back(roceSrc); 
 
         roceSrc->connect(routeout, routein, *roceSnk,0);
