@@ -163,7 +163,6 @@ int main(int argc, char **argv) {
         routeout->push_back(ndpSnk);
         
         routein  = new route_t();
-        routeout->push_back(&queue2); 
         routein->push_back(&pipe1);
         routein->push_back(ndpSrc); 
 
