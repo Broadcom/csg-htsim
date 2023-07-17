@@ -119,9 +119,6 @@ int main(int argc, char **argv) {
 
     CompositeQueue queue(SERVICE1, queuesize, eventlist,NULL); queue.setName("Queue1"); logfile.writeName(queue);
     queue.set_ecn_threshold(ecn_threshold);
-    
-    CompositeQueue queue2(SERVICE1, queuesize, eventlist,NULL); queue2.setName("Queue2"); logfile.writeName(queue2);
-    queue.set_ecn_threshold(ecn_threshold);
 
     NdpSrc* ndpSrc;
     NdpSink* ndpSnk;
