@@ -58,7 +58,6 @@ int main(int argc, char **argv) {
     Pipe pipe2(RTT1, eventlist); pipe2.setName("pipe2"); logfile.writeName(pipe2);
 
     CompositeQueue queue(SERVICE1, BUFFER, eventlist,NULL); queue.setName("Queue1"); logfile.writeName(queue);
-    CompositeQueue queue2(SERVICE1, BUFFER, eventlist,NULL); queue2.setName("Queue2"); logfile.writeName(queue2);
 
     Queue queue3(SERVICE1, BUFFER*20, eventlist,NULL); queue3.setName("Queue3"); logfile.writeName(queue3);
     
@@ -111,8 +110,7 @@ int main(int argc, char **argv) {
         routeout->push_back(ndpSnk);
         
         routein  = new route_t();
-        routeout->push_back(&queue2); 
-        routein->push_back(&pipe1);
+        routein->push_back(&pipe2);
         routein->push_back(ndpSrc); 
 
         ndpSrc->connect(*routeout, *routein, *ndpSnk,0);
