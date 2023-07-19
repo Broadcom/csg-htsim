@@ -237,8 +237,9 @@ STrackSrc::handle_ack(STrackAck::seq_t ackno) {
     // Not yet in fast recovery. What should we do instead?
     _dupacks++;
     // YANFANG: dupack num
-    if (_dupacks!=1000)  { // not yet serious worry
+    if (_dupacks!=3)  { // not yet serious worry
         log(STrackLogger::STRACK_RCV_DUP);
+        _dupacks = 0;
         applySTrackLimits();
         send_packets();
         return;
