@@ -98,7 +98,10 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc, pu
 
     // state needed for strack congestion control
     simtime_picosec _base_rtt; // for measuring achieved BDP
-    void set_base_rtt(simtime_picosec base_rtt) {_base_rtt = base_rtt;}
+    float _avg_rtt; 
+    void set_base_rtt(simtime_picosec base_rtt) {_base_rtt = base_rtt;     _avg_rtt = _base_rtt;}
+    void set_cc_enabled(bool cc_enabled) {_cc_enabled = cc_enabled;}
+
     uint32_t _rx_count; // amount received in a base_rtt
     uint32_t _achieved_BDP; // how much we managed to get to the receiver last RTT
     simtime_picosec _last_BDP_update; // the last time we updated achieved_BDP
@@ -136,7 +139,7 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc, pu
     void connect(STrackSink& sink, const Route& routeout, const Route& routeback, uint32_t flow_id, BaseScheduler* scheduler);
     virtual void receivePacket(Packet& pkt);
     void update_rtt(simtime_picosec delay);
-    void adjust_cwnd(simtime_picosec delay, STrackAck::seq_t ackno);
+    void adjust_cwnd(simtime_picosec delay, STrackAck::seq_t ackno, bool ecn);
     void applySTrackLimits();
     void handle_ack(STrackAck::seq_t ackno);
     void move_path();
@@ -169,7 +172,10 @@ class STrackSrc : public EventSource, public PacketSink, public ScheduledSrc, pu
     vector<int> _path_ids;
     vector<uint16_t> _path_ecns; //keeps path scores
     Trigger* _end_trigger;
+    bool _cc_enabled;
 
+    simtime_picosec _last_tput_time; 
+    uint32_t _tput_bytes; 
 
 
 protected:

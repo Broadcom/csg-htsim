@@ -50,10 +50,10 @@ public:
     uint32_t failed_links;
     queue_type _qt;
     queue_type _sender_qt;
-    uint32_t _bdp;
+    bool _tor_ecn;
 
     FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize, QueueLoggerFactory* logger_factory,
-                    EventList* ev,FirstFit* f, queue_type qt, simtime_picosec latency, simtime_picosec switch_latency, uint32_t bdp, queue_type snd = FAIR_PRIO);
+                    EventList* ev,FirstFit* f, queue_type qt, simtime_picosec latency, simtime_picosec switch_latency, bool _tor_ecn, queue_type snd = FAIR_PRIO);
     FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize, QueueLoggerFactory* logger_factory,
                     EventList* ev,FirstFit* f, queue_type qt, simtime_picosec latency, simtime_picosec switch_latency, queue_type snd = FAIR_PRIO);
     FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize, QueueLoggerFactory* logger_factory,
@@ -62,8 +62,6 @@ public:
                     EventList* ev,FirstFit* f, queue_type qt, uint32_t fail);
     FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize, QueueLoggerFactory* logger_factory,
                     EventList* ev,FirstFit* f, queue_type qt, queue_type sender_qt, uint32_t fail);
-    FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize, QueueLoggerFactory* logger_factory,
-                    EventList* ev,FirstFit* f, queue_type qt, queue_type sender_qt, uint32_t fail, uint32_t bdp);
 
     void init_network();
     virtual vector<const Route*>* get_bidir_paths(uint32_t src, uint32_t dest, bool reverse);

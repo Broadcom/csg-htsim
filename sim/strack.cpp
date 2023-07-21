@@ -46,8 +46,8 @@ STrackSrc::STrackSrc(STrackRtxTimerScanner& rtx_scanner, STrackLogger* logger,
     _base_delay = timeFromUs((uint32_t)20);    // configured base target delay.  To be confirmed by experiment - reproduce fig 17
     _h = _base_delay/6.55;            // path length scaling constant.  Value is a guess, will be clarified by experiment
     _rtx_reset_threshold = 5; // value is a guess
-    _min_cwnd = 10;  // guess - if we go less than 10 bytes, we probably get into rounding 
-    _max_cwnd = 1000 * _mss;  // maximum cwnd we can use.  Guess - how high should we allow cwnd to go?  Presumably something like B*target_delay?
+    _min_cwnd = _mss;  // guess - if we go less than 10 bytes, we probably get into rounding 
+    _max_cwnd = 100 * _mss;  // maximum cwnd we can use.  Guess - how high should we allow cwnd to go?  Presumably something like B*target_delay?
 
     // flow scaling
     _fs_range = 5 * _base_delay;
@@ -81,6 +81,7 @@ STrackSrc::STrackSrc(STrackRtxTimerScanner& rtx_scanner, STrackLogger* logger,
     _sink = NULL;
     _nodename = "strack_src" + std::to_string(get_id());
     _next_pathid = -1; 
+    _cc_enabled = false;
 }
 
 void
@@ -110,8 +111,10 @@ STrackSrc::update_rtt(simtime_picosec delay) {
 }
 
 void
-STrackSrc::adjust_cwnd(simtime_picosec delay, STrackAck::seq_t ackno) {
+STrackSrc::adjust_cwnd(simtime_picosec delay, STrackAck::seq_t ackno, bool ecn) {
     //cout << "adjust_cwnd delay " << timeAsUs(delay) << endl;
+     _alpha = 10*1000.0/12; 
+     float ewma = 5.0; // EWMA over half window
     // strack init
     _prev_cwnd = _strack_cwnd;
     simtime_picosec now = eventlist().now(); 
@@ -119,22 +122,47 @@ STrackSrc::adjust_cwnd(simtime_picosec delay, STrackAck::seq_t ackno) {
      _can_decrease = (now - _last_decrease) >= _base_rtt;
     //compute rtt
     // update_rtt(delay);
-
+    _avg_rtt = _avg_rtt*(_default_cwnd -ewma*_mss)/_default_cwnd + delay*ewma*_mss/_default_cwnd;
+    if(_flow.flow_id() == 1000000000)
+        cout <<timeAsUs(eventlist().now()) << " track_avg_rtt " << timeAsUs(_avg_rtt) << " delay " << timeAsUs(delay) << endl;
     // STrack cwnd calculation.  Doing this here does it for every ack, no matter if we're in fast recovery or not.  Need to be careful.
     simtime_picosec target_delay = targetDelay(*_route);
-    if (delay < target_delay) {
+    if (delay > target_delay*2 && ecn== false){
+        _strack_cwnd += 5*_mss / (_strack_cwnd/_mss);
+        if(_flow.flow_id() == 1000000000)
+            cout <<timeAsUs(eventlist().now())<< " increase noecn _strack_cwnd " << _strack_cwnd << endl;
+
+    }else if (delay < target_delay) {
         // _strack_cwnd = _alpha * (target_delay - _rtt) / _strack_cwnd;
-        _strack_cwnd += _alpha * (target_delay - delay) / _strack_cwnd;
-    } else if (_can_decrease) {
+        // We want to increase one BDP in a base rtt time;
+        // alpha*diff_us means how much data we want to increase in BDP;
+        // The less difference to the target, the less increase;
+        // Each packet, we increase such amount _alpha * diff_us / (_strack_cwnd/_mss);
+        // Per RTT, we should increase alpha*diff_us bytes
+        uint64_t diff_us = timeAsUs(target_delay - delay);
+        _strack_cwnd += _alpha * diff_us / (_strack_cwnd/_mss);
+        // _strack_cwnd += _mss / (_strack_cwnd/_mss);
+        if(_flow.flow_id() == 1000000000)
+            cout <<timeAsUs(eventlist().now())<< " increase _strack_cwnd " << _strack_cwnd << " _diff "<< (target_delay - delay) << " " << (target_delay - delay) / _strack_cwnd <<" delay " << timeAsUs(delay) << endl;
+    } else if (_can_decrease && _avg_rtt > target_delay) {
         // don't decrease more than once per RTT
-        if (delay > target_delay * 2 && _achieved_BDP > 0) {
+        if (delay > target_delay*1.5  && _achieved_BDP > 0) { //* 2
             _strack_cwnd = _achieved_BDP;
+            if(_flow.flow_id() == 1000000000)
+                cout <<timeAsUs(eventlist().now()) << " fast_convergence _strack_cwnd " << _strack_cwnd << endl;
+
         } else {
             // multiplicative decrease, as in Swift
             _strack_cwnd = _strack_cwnd * max( 1 - beta() * (delay - target_delay) / delay, 1 - max_mdf());
+            if(_flow.flow_id() == 1000000000)
+                cout <<timeAsUs(eventlist().now())<< " multiplicative _strack_cwnd " << _strack_cwnd << " _avg " << _avg_rtt<< endl;
+
         }
         _last_decrease = now;
     }
+
+    _strack_cwnd = _strack_cwnd*0.98 + _mss / (_strack_cwnd/_mss);
+    
 }
 
 void
@@ -376,7 +404,7 @@ STrackSrc::send_next_packet() {
         cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " Sent " << _highest_sent+1 << " path_id " << p->pathid()<< endl;
     }
     _highest_sent += mss();  
-    _packets_sent += mss();
+    _packets_sent += 1;
 
     std::cout << endl;
 
@@ -441,13 +469,13 @@ STrackSrc::receivePacket(Packet& pkt)
     STrackAck *p = (STrackAck*)(&pkt);
     STrackAck::seq_t ackno = p->ackno();
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_RCVDESTROY);
-  
+    bool ecn_marked = p->ecn_echo();
     ts_echo = p->ts_echo();
     assert(_paths.size() > 0);
     int skip_rounds =  (_default_cwnd/_mss )/(_paths.size()); //1 ; //(eventlist().now() - ts_echo)/_base_rtt;
     skip_rounds = std::max(1, skip_rounds);
     int32_t pathid_echo = p->pathid_echo();
-    if (p->ecn_echo()) {
+    if (ecn_marked) {
         count_ecn(pathid_echo, skip_rounds);
         _next_pathid  = -1;
     }else{
@@ -495,10 +523,22 @@ STrackSrc::receivePacket(Packet& pkt)
     _last_active = now;
 
     assert(ackno >= _last_acked);  // no dups or reordering allowed in this simple simulator
+    
     simtime_picosec delay = eventlist().now() - ts_echo;
     //Yanfang: remove window adjustment
-    adjust_cwnd(delay, ackno);
-
+    if (_cc_enabled)
+        adjust_cwnd(delay, ackno, ecn_marked);
+    _tput_bytes += _mss;
+    if (timeAsUs(eventlist().now() - _last_tput_time) > 100){
+        double diff = timeAsNs(eventlist().now() - _last_tput_time);
+        double tput = _tput_bytes*8.0/timeAsNs(eventlist().now() - _last_tput_time);
+        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " tput_as_time " <<  tput  << endl;
+        _last_tput_time = eventlist().now();
+        _tput_bytes = 0;
+    }
+    // if(_flow.flow_id() == 1000000000)
+        cout << timeAsUs(eventlist().now()) << " flow_id " << _flow.flow_id()  << " delay " << timeAsUs(delay)   << endl;
+    
     
     handle_ack(ackno);
 }
@@ -690,10 +730,12 @@ void STrackSrc::set_app_limit(int pktps) {
     send_packets();
 }
 
+//Yanfang: hardcode the _max_cwnd, the _max_cwnd will break if cwnd is not the max window. 
 void
 STrackSrc::set_cwnd(uint32_t cwnd) {
     _strack_cwnd = cwnd;
     _default_cwnd = cwnd;
+    _max_cwnd = cwnd;
 }
 
 void
@@ -842,7 +884,8 @@ STrackSrc::targetDelay(const Route& route) {
     }
     */
     simtime_picosec hop_delay = route.hop_count() * _h;
-    return _base_delay + hop_delay;
+    // return _base_delay + hop_delay;
+    return timeFromUs((uint32_t)24);
 }
 
 

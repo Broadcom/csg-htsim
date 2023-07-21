@@ -53,6 +53,8 @@ void CompositeQueue::beginService(){
     if( _queuesize_low  > _hightest_qdepth){
         _hightest_qdepth = _queuesize_low;
     }
+    if (_queue_id == 0)
+        cout << timeAsUs(eventlist().now()) <<" _queuesize_low " << _queuesize_low*8/(100*1000.0) <<" _queueid " << _queue_id;
     if (!_enqueued_high.empty()){
         _serv = QUEUE_HIGH;
         eventlist().sourceIsPendingRel(*this, drainTime(_enqueued_high.back()));
@@ -74,7 +76,12 @@ void CompositeQueue::beginService(){
                 // cout << " now " << eventlist().now() << endl;
                 //<<" size " << pkt->size() << " remotePoint " << getRemoteEndpoint()->nodename()
             pkt->set_flags(pkt->flags() | ECN_CE);
+            if (_queue_id == 0){
+                cout << " ecn ";
+            }
         }
+        if (_queue_id == 0)
+            cout << endl;
     }
 }
 
