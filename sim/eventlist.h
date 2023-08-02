@@ -32,6 +32,11 @@ public:
     void reschedulePendingSource(EventSource &src, simtime_picosec when);
     void triggerIsPending(TriggerTarget &target);
     inline simtime_picosec now() const {return _lasteventtime;}
+
+    static EventList& getTheEventList();
+    EventList(const EventList&)      = delete;  // disable Copy Constructor
+    void operator=(const EventList&) = delete;  // disable Assign Constructor
+
 private:
     simtime_picosec _endtime;
     simtime_picosec _lasteventtime;
@@ -39,6 +44,8 @@ private:
     pendingsources_t _pendingsources;
 
     vector <TriggerTarget*> _pending_triggers;
+    static int _instanceCount;
+    static EventList* _theEventList;
 };
 
 #endif

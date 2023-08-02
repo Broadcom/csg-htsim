@@ -3,10 +3,31 @@
 #include "eventlist.h"
 #include "trigger.h"
 
+int EventList::_instanceCount = 0;
+EventList* EventList::_theEventList = nullptr;
+
 EventList::EventList()
     : _endtime(0),
       _lasteventtime(0)
 {
+    if (EventList::_instanceCount != 0) 
+    {
+        std::cerr << "There should be only one instance of EventList. Abort." << std::endl;
+        abort();
+    }
+
+    EventList::_theEventList = this;
+    EventList::_instanceCount += 1;
+}
+
+EventList& 
+EventList::getTheEventList()
+{
+    if (EventList::_theEventList == nullptr) 
+    {
+        EventList::_theEventList = new EventList();
+    }
+    return *EventList::_theEventList;
 }
 
 void
