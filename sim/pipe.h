@@ -21,7 +21,7 @@ typedef struct pktrecord {
 
 class Pipe : public EventSource, public PacketSink, public Drawable {
  public:
-    Pipe(simtime_picosec delay, EventList& eventlist);
+    Pipe(simtime_picosec delay, EventList& eventlist=EventList::getTheEventList());
     virtual void receivePacket(Packet& pkt); // inherited from PacketSink
     virtual void doNextEvent(); // inherited from EventSource
     simtime_picosec delay() { return _delay; }

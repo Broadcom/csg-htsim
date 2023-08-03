@@ -103,3 +103,7 @@ EventList::reschedulePendingSource(EventSource &src, simtime_picosec when) {
     cancelPendingSource(src);
     sourceIsPending(src, when);
 }
+
+EventSource::EventSource(const string& name) : EventSource(EventList::getTheEventList(), name) 
+{
+}

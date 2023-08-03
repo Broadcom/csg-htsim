@@ -13,6 +13,7 @@ class TriggerTarget;
 class EventSource : public Logged {
 public:
     EventSource(EventList& eventlist, const string& name) : Logged(name), _eventlist(eventlist) {};
+    EventSource(const string& name);
     virtual ~EventSource() {};
     virtual void doNextEvent() = 0;
     inline EventList& eventlist() const {return _eventlist;}
