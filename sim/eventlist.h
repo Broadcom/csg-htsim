@@ -23,27 +23,27 @@ protected:
 class EventList {
 public:
     EventList();
-    void setEndtime(simtime_picosec endtime); // end simulation at endtime (rather than forever)
-    bool doNextEvent(); // returns true if it did anything, false if there's nothing to do
-    void sourceIsPending(EventSource &src, simtime_picosec when);
-    void sourceIsPendingRel(EventSource &src, simtime_picosec timefromnow)
-    { sourceIsPending(src, now()+timefromnow); }
-    void cancelPendingSource(EventSource &src);
-    void reschedulePendingSource(EventSource &src, simtime_picosec when);
-    void triggerIsPending(TriggerTarget &target);
-    inline simtime_picosec now() const {return _lasteventtime;}
+    static void setEndtime(simtime_picosec endtime); // end simulation at endtime (rather than forever)
+    static bool doNextEvent(); // returns true if it did anything, false if there's nothing to do
+    static void sourceIsPending(EventSource &src, simtime_picosec when);
+    static void sourceIsPendingRel(EventSource &src, simtime_picosec timefromnow)
+    { sourceIsPending(src, EventList::now()+timefromnow); }
+    static void cancelPendingSource(EventSource &src);
+    static void reschedulePendingSource(EventSource &src, simtime_picosec when);
+    static void triggerIsPending(TriggerTarget &target);
+    static inline simtime_picosec now() {return EventList::_lasteventtime;}
 
     static EventList& getTheEventList();
     EventList(const EventList&)      = delete;  // disable Copy Constructor
     void operator=(const EventList&) = delete;  // disable Assign Constructor
 
 private:
-    simtime_picosec _endtime;
-    simtime_picosec _lasteventtime;
+    static simtime_picosec _endtime;
+    static simtime_picosec _lasteventtime;
     typedef multimap <simtime_picosec, EventSource*> pendingsources_t;
-    pendingsources_t _pendingsources;
+    static pendingsources_t _pendingsources;
+    static vector <TriggerTarget*> _pending_triggers;
 
-    vector <TriggerTarget*> _pending_triggers;
     static int _instanceCount;
     static EventList* _theEventList;
 };

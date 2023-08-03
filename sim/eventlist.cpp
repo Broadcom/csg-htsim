@@ -3,12 +3,15 @@
 #include "eventlist.h"
 #include "trigger.h"
 
+simtime_picosec EventList::_endtime = 0;
+simtime_picosec EventList::_lasteventtime = 0;
+EventList::pendingsources_t EventList::_pendingsources;
+vector <TriggerTarget*> EventList::_pending_triggers;
 int EventList::_instanceCount = 0;
 EventList* EventList::_theEventList = nullptr;
 
 EventList::EventList()
-    : _endtime(0),
-      _lasteventtime(0)
+    //: _endtime(0), _lasteventtime(0)
 {
     if (EventList::_instanceCount != 0) 
     {
@@ -33,7 +36,7 @@ EventList::getTheEventList()
 void
 EventList::setEndtime(simtime_picosec endtime)
 {
-    _endtime = endtime;
+    EventList::_endtime = endtime;
 }
 
 bool
