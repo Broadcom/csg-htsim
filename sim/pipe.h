@@ -42,7 +42,7 @@ protected:
     int _next_insert, _next_pop, _count, _size;
 private:
     simtime_picosec _delay;
-    PacketSink* _next_sink; // used in generic topology for linkage
+    PacketSink* _next_sink{nullptr}; // used in generic topology for linkage
 };
 
 
