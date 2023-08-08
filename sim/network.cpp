@@ -45,6 +45,13 @@ Packet::set_route(const Route &route){
     //_detour = NULL;
 }
 
+void 
+Packet::set_route(const Route *route){
+    _route = route;
+    _nexthop = 0;
+    //_detour = NULL;
+}
+
 PacketSink *
 Packet::sendOn() {
     PacketSink* nextsink;

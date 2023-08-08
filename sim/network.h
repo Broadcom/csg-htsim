@@ -143,6 +143,7 @@ class Packet {
 
     uint32_t nexthop() const {return _nexthop;} // only intended to be used for debugging
     virtual void set_route(const Route &route);
+    virtual void set_route(const Route *route=nullptr);
 
     void set_ingress_queue(LosslessInputQueue* t){assert(!_ingressqueue); _ingressqueue = t;}
     LosslessInputQueue* get_ingress_queue(){assert(_ingressqueue); return _ingressqueue;}
