@@ -3,7 +3,7 @@ OBJS=eventlist.o tcppacket.o pipe.o queue.o meter.o queue_lossless.o queue_lossl
 HDRS=network.h ndp.h ndptunnel.h queue_lossless.h queue_lossless_input.h queue_lossless_output.h compositequeue.h prioqueue.h cpqueue.h queue.h loggers.h loggertypes.h pipe.h eventlist.h config.h tcp.h dctcp.h mtcp.h sent_packets.h tcppacket.h ndppacket.h rocepacket.h eth_pause_packet.h ndp_transfer.h compositeprioqueue.h ecnqueue.h switch.h dctcp_transfer.h callback_pipe.h meter.h ndptunnelpacket.h swiftpacket.h swift.h swift_scheduler.h routetable.h circular_buffer.h trigger.h hpccpacket.h hpcc.h strackpacket.h strack.h priopullqueue.h ecnprioqueue.h
 
 CC=g++
-CFLAGS = -Wall -std=c++11 -g -Wsign-compare -Wuninitialized
+CFLAGS = -Wall -std=c++11 -g -Wsign-compare -Wuninitialized -fPIE
 #CFLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
 CFLAGS += -O2
 
