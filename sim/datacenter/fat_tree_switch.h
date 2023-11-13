@@ -128,6 +128,7 @@ public:
     static uint16_t _ar_sticky;
     static simtime_picosec _sticky_delta;
     static double _ecn_threshold_fraction;
+    static double _speculative_threshold_fraction;    
 private:
     switch_type _type;
     Pipe* _pipe;

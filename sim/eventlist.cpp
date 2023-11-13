@@ -11,9 +11,8 @@ int EventList::_instanceCount = 0;
 EventList* EventList::_theEventList = nullptr;
 
 EventList::EventList()
-    //: _endtime(0), _lasteventtime(0)
 {
-    if (EventList::_instanceCount != 0) 
+    if (EventList::_instanceCount != 0)
     {
         std::cerr << "There should be only one instance of EventList. Abort." << std::endl;
         abort();
@@ -23,10 +22,10 @@ EventList::EventList()
     EventList::_instanceCount += 1;
 }
 
-EventList& 
+EventList&
 EventList::getTheEventList()
 {
-    if (EventList::_theEventList == nullptr) 
+    if (EventList::_theEventList == nullptr)
     {
         EventList::_theEventList = new EventList();
     }
@@ -36,7 +35,7 @@ EventList::getTheEventList()
 void
 EventList::setEndtime(simtime_picosec endtime)
 {
-    EventList::_endtime = endtime;
+    _endtime = endtime;
 }
 
 bool
@@ -67,19 +66,22 @@ EventList::doNextEvent()
 void 
 EventList::sourceIsPending(EventSource &src, simtime_picosec when) 
 {
-    /*
-      pendingsources_t::iterator i = _pendingsources.begin();
-      while (i != _pendingsources.end()) {
-      if (i->second == &src)
-      abort();
-      i++;
-      }
-    */
-    
     assert(when>=now());
     if (_endtime==0 || when<_endtime)
         _pendingsources.insert(make_pair(when,&src));
 }
+
+EventList::Handle
+EventList::sourceIsPendingGetHandle(EventSource &src, simtime_picosec when) 
+{
+    assert(when>=now());
+    if (_endtime==0 || when<_endtime) {
+        EventList::Handle handle =_pendingsources.insert(make_pair(when,&src));
+        return handle;
+    }
+    return _pendingsources.end();
+}
+
 
 void
 EventList::triggerIsPending(TriggerTarget &target) {
@@ -99,11 +101,35 @@ EventList::cancelPendingSource(EventSource &src) {
 }
 
 void 
+EventList::cancelPendingSourceByTime(EventSource &src, simtime_picosec when) {
+    // fast cancellation of a timer - the timer MUST exist
+    // this should normally be fast, except if we have a lot of events with exactly the same time value
+
+    auto range = _pendingsources.equal_range(when);
+
+    for (auto i = range.first; i != range.second; ++i) {
+        if (i->second == &src) {
+            _pendingsources.erase(i);
+            return;
+        }
+    }
+    abort();
+}
+
+
+void EventList::cancelPendingSourceByHandle(EventSource &src, EventList::Handle handle) {
+    // If we're cancelling timers often, cancel them by handle.  But
+    // be careful - cancelling a handle that has already been
+    // cancelled or has already expired is undefined behaviour
+    assert(handle->second == &src);
+    assert(handle != _pendingsources.end());
+    assert(handle->first >= now());
+    
+    _pendingsources.erase(handle);
+}
+
+void 
 EventList::reschedulePendingSource(EventSource &src, simtime_picosec when) {
     cancelPendingSource(src);
     sourceIsPending(src, when);
-}
-
-EventSource::EventSource(const string& name) : EventSource(EventList::getTheEventList(), name) 
-{
 }

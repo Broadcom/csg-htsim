@@ -6,6 +6,7 @@
 class Packet;
 class TcpSrc;
 class NdpSrc;
+class EqdsSrc;
 class SwiftSrc;
 class SwiftSubflowSrc;
 class STrackSrc;
@@ -64,7 +65,9 @@ class Logger {
                      ROCE_TRAFFIC=25,ROCE_SINK=26,
                      HPCC_TRAFFIC=27,HPCC_SINK=28,
                      STRACK_EVENT=29, STRACK_STATE=30, STRACK_TRAFFIC=31,
-                     STRACK_SINK=32, STRACK_MEMORY=33};
+                     STRACK_SINK=32, STRACK_MEMORY=33,
+                     EQDS_EVENT=38, EQDS_STATE=39, EQDS_RECORD=40,
+                     EQDS_SINK = 41, EQDS_MEMORY = 42, EQDS_TRAFFIC = 43    };
     static string event_to_str(RawLogEvent& event);
     Logger() {};
     virtual ~Logger(){};
@@ -158,6 +161,20 @@ class NdpLogger  : public Logger {
 
     virtual void logNdp(NdpSrc &src, NdpEvent ev) =0;
     virtual ~NdpLogger(){};
+};
+
+class EqdsLogger  : public Logger {
+ public:
+    enum EqdsEvent { EQDS_RCV=0, EQDS_RCV_FR_END=1, EQDS_RCV_FR=2, EQDS_RCV_DUP_FR=3,
+                    EQDS_RCV_DUP=4, EQDS_RCV_3DUPNOFR=5,
+                    EQDS_RCV_DUP_FASTXMIT=6, EQDS_TIMEOUT=7 };
+    enum EqdsState { EQDSSTATE_CNTRL=0, EQDSSTATE_SEQ=1 };
+    enum EqdsRecord { AVE_CWND=0 };
+    enum EqdsSinkRecord { RATE = 0 };
+    enum EqdsMemoryRecord  {MEMORY = 0};
+
+    virtual void logEqds(EqdsSrc &src, EqdsEvent ev) =0;
+    virtual ~EqdsLogger(){};
 };
 
 class RoceLogger  : public Logger {

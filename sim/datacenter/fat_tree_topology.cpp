@@ -9,7 +9,9 @@
 #include "queue.h"
 #include "fat_tree_switch.h"
 #include "compositequeue.h"
+#include "aeolusqueue.h"
 #include "prioqueue.h"
+#include "ecnprioqueue.h"
 #include "queue_lossless.h"
 #include "queue_lossless_input.h"
 #include "queue_lossless_output.h"
@@ -555,8 +557,24 @@ FatTreeTopology::alloc_queue(QueueLogger* queueLogger, linkspeed_bps speed, mem_
         return new CompositeQueue(speed, queuesize, *_eventlist, queueLogger);
     case CTRL_PRIO:
         return new CtrlPrioQueue(speed, queuesize, *_eventlist, queueLogger);
+    case AEOLUS:
+        return new AeolusQueue(speed, queuesize, FatTreeSwitch::_speculative_threshold_fraction * queuesize,  *_eventlist, queueLogger);
+    case AEOLUS_ECN:
+        {
+            AeolusQueue* q = new AeolusQueue(speed, queuesize, FatTreeSwitch::_speculative_threshold_fraction * queuesize ,  *_eventlist, queueLogger);
+            if (!tor || dir == UPLINK) {
+                // don't use ECN on ToR downlinks
+                q->set_ecn_threshold(FatTreeSwitch::_ecn_threshold_fraction * queuesize);
+            }
+            return q;
+        }
     case ECN:
         return new ECNQueue(speed, queuesize, *_eventlist, queueLogger, memFromPkt(15));
+    case ECN_PRIO:
+        return new ECNPrioQueue(speed, queuesize, queuesize,
+                                FatTreeSwitch::_ecn_threshold_fraction * queuesize,
+                                FatTreeSwitch::_ecn_threshold_fraction * queuesize,
+                                *_eventlist, queueLogger);
     case LOSSLESS:
         return new LosslessQueue(speed, queuesize, *_eventlist, queueLogger, NULL);
     case LOSSLESS_INPUT:
@@ -768,6 +786,7 @@ void FatTreeTopology::init_network(){
             uint32_t podpos = agg%(_agg_switches_per_pod);
             for (uint32_t l = 0; l < _radix_up[AGG_TIER]/_bundlesize[CORE_TIER]; l++) {
                 uint32_t core = podpos +  _agg_switches_per_pod * l;
+                assert(core < NCORE);
                 for (uint32_t b = 0; b < _bundlesize[CORE_TIER]; b++) {
                 
                     // Downlink
@@ -918,7 +937,7 @@ vector<const Route*>* FatTreeTopology::get_bidir_paths(uint32_t src, uint32_t de
         paths->push_back(routeout);
 
         check_non_null(routeout);
-        cout << "pathcount " << paths->size() << endl;
+        //cout << "pathcount " << paths->size() << endl;
         return paths;
     }
     else if (HOST_POD(src)==HOST_POD(dest)){

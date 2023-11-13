@@ -53,7 +53,7 @@ int main(int argc, char** argv){
             show = true;
         } else if (!strcmp(argv[i],"-verbose")){
             verbose = true;
-        } else if (!strcmp(argv[i],"-ascii")){
+        } else if (!strcmp(argv[i],"-ascii") || !strcmp(argv[i],"--ascii")){
             ascii = true;
         } else if (!strcmp(argv[i],"-filter")){
             string* s = new string(argv[i+1]);
@@ -229,6 +229,8 @@ int main(int argc, char** argv){
         TYPE = 18; EV = 1800;
     } else if (argc>2&&!strcmp(argv[2], "-roce")) {
         TYPE = 26; EV = 2600;
+    } else if (argc>2&&!strcmp(argv[2], "-eqds")) {
+        TYPE = 41; EV = 4100;
     } else if (argc>2&&!strcmp(argv[2], "-hpcc")) {
         TYPE = 28; EV = 2800;
     } else if (argc>2&&!strcmp(argv[2], "-swift")) {
@@ -289,6 +291,7 @@ int main(int argc, char** argv){
             case Logger::ROCE_TRAFFIC: //10
                 out = RoceTrafficLogger::event_to_str(event);
                 break;
+                break;                
             case Logger::HPCC_TRAFFIC: //10
                 out = HPCCTrafficLogger::event_to_str(event);
                 break;
@@ -312,12 +315,23 @@ int main(int argc, char** argv){
                 // not currently used, so use default logger
                 out = Logger::event_to_str(event);
                 break;
+            case Logger::EQDS_EVENT: 
+            case Logger::EQDS_STATE: 
+            case Logger::EQDS_RECORD:
+            case Logger::EQDS_MEMORY:
+            case Logger::EQDS_TRAFFIC:
+                // not currently used, so use default logger
+                out = Logger::event_to_str(event);
+                break;
             case Logger::NDP_SINK: //18
                 out = NdpSinkLoggerSampling::event_to_str(event);
                 break;
+            case Logger::EQDS_SINK: //18
+                out = EqdsSinkLoggerSampling::event_to_str(event);
+                break;
             case Logger::ROCE_SINK: //18
                 out = RoceSinkLoggerSampling::event_to_str(event);
-                break;                
+                break;
             case Logger::HPCC_SINK: //18
                 out = HPCCSinkLoggerSampling::event_to_str(event);
                 break;                
@@ -357,7 +371,6 @@ int main(int argc, char** argv){
             case Logger::STRACK_TRAFFIC:
                 out = STrackTrafficLogger::event_to_str(event);
                 break;
-
             }
             bool do_output = true;
             for (size_t f=0; f < filters.size(); f++) {
