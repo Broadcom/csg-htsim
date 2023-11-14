@@ -23,6 +23,8 @@ CompositeQueue::CompositeQueue(linkspeed_bps bitrate, mem_b maxsize, EventList& 
     _ecn_minthresh = maxsize*2; // don't set ECN by default
     _ecn_maxthresh = maxsize*2; // don't set ECN by default
 
+    _return_to_sender = false;
+
     _queuesize_high = _queuesize_low = 0;
     _serv = QUEUE_INVALID;
     stringstream ss;
@@ -136,7 +138,6 @@ CompositeQueue::receivePacket(Packet& pkt)
     pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_ARRIVE);
     if (_logger) _logger->logQueue(*this, QueueLogger::PKT_ARRIVE, pkt);
 
-    //is this a Tofino packet from the egress pipeline?
     if (!pkt.header_only()){
         if (_queuesize_low+pkt.size() <= _maxsize  || drand()<0.5) {
             //regular packet; don't drop the arriving packet
@@ -165,7 +166,7 @@ CompositeQueue::receivePacket(Packet& pkt)
                 if (_logger) _logger->logQueue(*this, QueueLogger::PKT_TRIM, pkt);
                         
                 if (_queuesize_high+booted_pkt->size() > 2*_maxsize){
-                    if (booted_pkt->reverse_route()  && booted_pkt->bounced() == false) {
+                    if (_return_to_sender && booted_pkt->reverse_route()  && booted_pkt->bounced() == false) {
                         //return the packet to the sender
                         if (_logger) _logger->logQueue(*this, QueueLogger::PKT_BOUNCE, *booted_pkt);
                         booted_pkt->flow().logTraffic(pkt,*this,TrafficLogger::PKT_BOUNCE);
@@ -185,7 +186,6 @@ CompositeQueue::receivePacket(Packet& pkt)
                         _num_bounced++;
                         booted_pkt->sendOn();
                     } else {    
-                        cout << "Dropped\n";
                         booted_pkt->flow().logTraffic(*booted_pkt,*this,TrafficLogger::PKT_DROP);
                         booted_pkt->free();
                         if (_logger) _logger->logQueue(*this, QueueLogger::PKT_DROP, pkt);
@@ -198,7 +198,7 @@ CompositeQueue::receivePacket(Packet& pkt)
                 }
             }
 
-            assert(_queuesize_low+pkt.size()<= _maxsize);
+            //assert(_queuesize_low+pkt.size()<= _maxsize);
             Packet* pkt_p = &pkt;
             _enqueued_low.push(pkt_p);
             _queuesize_low += pkt.size();
@@ -225,7 +225,7 @@ CompositeQueue::receivePacket(Packet& pkt)
     if (_queuesize_high+pkt.size() > 2*_maxsize){
         //drop header
         //cout << "drop!\n";
-        if (pkt.reverse_route()  && pkt.bounced() == false) {
+        if (_return_to_sender && pkt.reverse_route()  && pkt.bounced() == false) {
             //return the packet to the sender
             if (_logger) _logger->logQueue(*this, QueueLogger::PKT_BOUNCE, pkt);
             pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_BOUNCE);
@@ -248,8 +248,8 @@ CompositeQueue::receivePacket(Packet& pkt)
         } else {
             if (_logger) _logger->logQueue(*this, QueueLogger::PKT_DROP, pkt);
             pkt.flow().logTraffic(pkt,*this,TrafficLogger::PKT_DROP);
-            cout << "B[ " << _enqueued_low.size() << " " << _enqueued_high.size() << " ] DROP " 
-                 << pkt.flow().get_id() << endl;
+            //cout << "B[ " << _enqueued_low.size() << " " << _enqueued_high.size() << " ] DROP " 
+            //     << pkt.flow().get_id() << endl;
             pkt.free();
             _num_drops++;
             return;
