@@ -412,7 +412,7 @@ int main(int argc, char** argv){
                          << " ID=" << idRec[i] << " VAL1=" << val1Rec[i] 
                          << " VAL2=" << val2Rec[i] << " VAL3=" << val3Rec[i] << endl;        
 
-                if (!isnan(val3Rec[i])) {
+                if (!isnan((long double)val3Rec[i])) {
                     if (flow_rates.find(idRec[i]) == flow_rates.end()){
                         flow_rates[idRec[i]] = val3Rec[i];
                         flow_count[idRec[i]] = 1;
@@ -422,7 +422,7 @@ int main(int argc, char** argv){
                     }
                 }
 
-                if (!isnan(val2Rec[i])) {
+                if (!isnan((long double)val2Rec[i])) {
                     if (flow_rates2.find(idRec[i]) == flow_rates2.end()) {
                         flow_rates2[idRec[i]] = val2Rec[i];
                         flow_count2[idRec[i]] = 1;

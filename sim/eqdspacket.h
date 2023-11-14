@@ -22,9 +22,8 @@ public:
 };
 
 class EqdsDataPacket : public EqdsBasePacket {
-    //using Packet::set_route;
+    using Packet::set_route;
 public:
-
     enum PacketType {DATA = 0, SPECULATIVE = 1, RTX = 2};
     //typedef enum {_500B,_1KB,_2KB,_4KB} packet_size;   // need to handle arbitrary packet sizes at end of messages
   
@@ -33,9 +32,9 @@ public:
                                          PacketType pkttype, uint64_t pull_target,
                                          uint32_t destination = UINT32_MAX) {
         EqdsDataPacket* p = _packetdb.allocPacket();
-        //p->set_route(flow, route, full_size, seqno);  // also sets size and seqno
-        p->set_route(route);  // Set route
-        p->set_attrs(flow, full_size, seqno);// also sets size and seqno
+        p->set_route(flow, route, full_size, seqno);  // also sets size and seqno
+        //p->set_route(route);  // Set route
+        //p->set_attrs(flow, full_size, seqno);// also sets size and seqno
 
         p->_type = EQDSDATA;
         p->_is_header = false;
@@ -256,13 +255,13 @@ protected:
 };
 
 class EqdsRtsPacket : public EqdsDataPacket {
-    //using Packet::set_route;
+    using Packet::set_route;
 public:    
-    inline static EqdsRtsPacket* newpkt(PacketFlow& flow, const Route &route, seq_t seqno, seq_t pull_target,bool to,uint32_t destination = UINT32_MAX) {
+    inline static EqdsRtsPacket* newpkt(PacketFlow& flow, const Route& route, seq_t seqno, seq_t pull_target,bool to,uint32_t destination = UINT32_MAX) {
         EqdsRtsPacket* p = _packetdb.allocPacket();
-        //p->set_route(flow,route,ACKSIZE,0);
-        p->set_route(route);  // Set route
-        p->set_attrs(flow, ACKSIZE, seqno);// also sets size and seqno
+        p->set_route(flow,route,ACKSIZE,0);
+        //p->set_route(&route);  // Set route
+        //p->set_attrs(flow, ACKSIZE, seqno);// also sets size and seqno
 
         //p->set_attrs(flow, ACKSIZE, 0);
         p->_type = EQDSRTS;
