@@ -22,7 +22,7 @@ public:
 };
 
 class EqdsDataPacket : public EqdsBasePacket {
-    using Packet::set_route;
+    //using Packet::set_route;
 public:
     enum PacketType {DATA = 0, SPECULATIVE = 1, RTX = 2};
     //typedef enum {_500B,_1KB,_2KB,_4KB} packet_size;   // need to handle arbitrary packet sizes at end of messages
@@ -73,6 +73,14 @@ public:
 
         Packet::set_route(route);
     }
+
+    virtual inline void set_route(PacketFlow& flow, const Route &route, int pkt_size, packetid_t id){
+        if (_trim_hop!=INT32_MAX)
+            _trim_hop -= route.size();
+
+        Packet::set_route(flow,route,pkt_size,id);
+    };
+
 
     void free() {_packetdb.freePacket(this);}
     virtual ~EqdsDataPacket(){}
