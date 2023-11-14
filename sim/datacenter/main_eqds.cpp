@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     bool log_queue_usage = false;
     double ecn_thresh = 0.5; // default marking threshold for ECN load balancing
 
-    RouteStrategy route_strategy = ECMP_FIB;
+    RouteStrategy route_strategy = NOT_SET;
     
     int seed = 13;
     int path_burst = 1;
@@ -325,6 +325,11 @@ int main(int argc, char **argv) {
     srandom(seed);
     cout << "Parsed args\n";
     Packet::set_packet_size(packet_size);
+
+    if (route_strategy==NOT_SET){
+        route_strategy = ECMP_FIB;
+        FatTreeSwitch::set_strategy(FatTreeSwitch::ECMP);
+    }
 
     /*
     EqdsSink::_oversubscribed_congestion_control = oversubscribed_congestion_control;
