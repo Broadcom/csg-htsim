@@ -63,7 +63,6 @@ int main(int argc, char **argv) {
     double ecn_thresh = 0.5; // default marking threshold for ECN load balancing
 
     RouteStrategy route_strategy = ECMP_FIB;
-    FatTreeSwitch::set_strategy(FatTreeSwitch::ECMP);
     
     int seed = 13;
     int path_burst = 1;
