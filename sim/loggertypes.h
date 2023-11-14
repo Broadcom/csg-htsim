@@ -4,6 +4,7 @@
 #include <vector>
 
 class Packet;
+class PacketFlow;
 class TcpSrc;
 class NdpSrc;
 class EqdsSrc;
@@ -21,6 +22,7 @@ class MultipathTcpSrc;
 class Logfile;
 class RawLogEvent;
 class Logged;
+
 
 // keep track of all logged items so we can do ID->Name mapping later
 class LoggedManager {
@@ -67,13 +69,20 @@ class Logger {
                      STRACK_EVENT=29, STRACK_STATE=30, STRACK_TRAFFIC=31,
                      STRACK_SINK=32, STRACK_MEMORY=33,
                      EQDS_EVENT=38, EQDS_STATE=39, EQDS_RECORD=40,
-                     EQDS_SINK = 41, EQDS_MEMORY = 42, EQDS_TRAFFIC = 43    };
+                     EQDS_SINK = 41, EQDS_MEMORY = 42, EQDS_TRAFFIC = 43, FLOW_EVENT = 44 };
     static string event_to_str(RawLogEvent& event);
     Logger() {};
     virtual ~Logger(){};
  protected:
     void setLogfile(Logfile& logfile) { _logfile=&logfile; }
     Logfile* _logfile;
+};
+
+class FlowEventLogger: public Logger {
+public:
+    enum FlowEvent {START = 0, FINISH = 1};
+    virtual void logEvent(PacketFlow& flow, Logged& location, FlowEvent ev, mem_b bytes, uint64_t pkts) =0;
+    virtual ~FlowEventLogger(){};
 };
 
 class TrafficLogger : public Logger {
@@ -167,7 +176,7 @@ class EqdsLogger  : public Logger {
  public:
     enum EqdsEvent { EQDS_RCV=0, EQDS_RCV_FR_END=1, EQDS_RCV_FR=2, EQDS_RCV_DUP_FR=3,
                     EQDS_RCV_DUP=4, EQDS_RCV_3DUPNOFR=5,
-                    EQDS_RCV_DUP_FASTXMIT=6, EQDS_TIMEOUT=7 };
+                    EQDS_RCV_DUP_FASTXMIT=6, EQDS_TIMEOUT=7, EQDS_FLOW_START=8, EQDS_FLOW_FINISHED=9 };
     enum EqdsState { EQDSSTATE_CNTRL=0, EQDSSTATE_SEQ=1 };
     enum EqdsRecord { AVE_CWND=0 };
     enum EqdsSinkRecord { RATE = 0 };

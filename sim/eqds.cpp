@@ -324,6 +324,9 @@ bool EqdsSrc::checkFinished(EqdsDataPacket::seq_t cum_ack) {
         if (_end_trigger) {
             _end_trigger->activate();
         }
+        if (_flow_logger) {
+            _flow_logger->logEvent(_flow, *this, FlowEventLogger::FINISH, _flow_size, cum_ack);
+        }
         _done_sending = true;
         return true;
     }
@@ -447,6 +450,9 @@ void EqdsSrc::startFlow() {
     _cwnd = _maxwnd;
     _speculative_credit = _maxwnd;
     if (EqdsSrc::_debug) cout << "startflow " <<  _flow._name <<  " CWND " << _cwnd << " at " << timeAsUs(eventlist().now()) << " flow " << _flow.str() << endl;
+    if (_flow_logger) {
+        _flow_logger->logEvent(_flow, *this, FlowEventLogger::START, _flow_size, 0);
+    }
     clearRTO();
     _in_flight = 0;
     _pull_target = 0;

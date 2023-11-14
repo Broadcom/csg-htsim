@@ -66,6 +66,7 @@ class EqdsSrc : public EventSource, public PacketSink, public TriggerTarget {
         uint64_t pulls;
     };
     EqdsSrc(TrafficLogger *trafficLogger, EventList &eventList, EqdsNIC &nic, bool rts = false);
+    void logFlowEvents(FlowEventLogger& flow_logger) {_flow_logger = &flow_logger;}
     virtual void connect(Route &routeout, Route &routeback, EqdsSink &sink, simtime_picosec start);
     void timeToSend();
     void receivePacket(Packet &pkt) ;
@@ -119,6 +120,7 @@ class EqdsSrc : public EventSource, public PacketSink, public TriggerTarget {
 
     EqdsLogger* _logger;
     TrafficLogger* _pktlogger;
+    FlowEventLogger* _flow_logger;
     Trigger* _end_trigger;
     
     // TODO in-flight packet storage - acks and sacks clear it

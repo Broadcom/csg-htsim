@@ -406,6 +406,34 @@ string MultiQueueLoggerSampling::event_to_str(RawLogEvent& event) {
     return ss.str();
 }
 
+void FlowEventLoggerSimple::logEvent(PacketFlow& flow, Logged& location, FlowEvent ev, mem_b bytes, uint64_t pkts) {
+    _logfile->writeRecord(Logger::FLOW_EVENT,
+                          location.get_id(),
+                          ev,
+                          flow.get_id(),
+                          bytes, pkts);
+}
+
+string FlowEventLoggerSimple::event_to_str(RawLogEvent& event) {
+    stringstream ss;
+    ss << fixed << setprecision(9) << event._time;
+    assert(event._type == Logger::FLOW_EVENT);
+    ss << " Type FLOW_EVENT SrcID " << event._id;
+    switch((FlowEventLogger::FlowEvent)event._ev) {
+    case START:
+        ss << " Ev START ";
+        ss << " FlowID " << (uint64_t)event._val1;
+        ss << " Flowsize " << (uint64_t)event._val2;
+        break;
+    case FINISH:
+        ss << " Ev FINISH";
+        ss << " FlowID " << (uint64_t)event._val1;
+        ss << " Bytes " << (uint64_t)event._val2;
+        ss << " Pkts " << (uint64_t)event._val3;
+        break;
+    }
+    return ss.str();
+}
 
 void TrafficLoggerSimple::logTraffic(Packet& pkt, Logged& location, 
                                      TrafficEvent ev) {
@@ -1503,7 +1531,7 @@ void EqdsSinkLoggerSampling::doNextEvent(){
     //cout << "EqdsSinkLoggerSampling(p=" << timeAsSec(_period) << "), t=" << timeAsSec(now) << "\n";                                                                                                                
     for (uint64_t i = 0; i<_sinks.size(); i++){
         EqdsSink *sink = (EqdsSink*)_sinks[i];
-        if (_last_seq[i] <= sink->total_received()) {
+        if ((mem_b)_last_seq[i] <= sink->total_received()) {
             deltaB = sink->total_received() - _last_seq[i];
             if (delta > 0)
                 rate = deltaB * 1000000000000.0 / delta;//Bps                                                                                                                                                        

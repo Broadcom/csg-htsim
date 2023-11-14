@@ -19,6 +19,11 @@
 #include <list>
 #include <map>
 
+class FlowEventLoggerSimple : public FlowEventLogger {
+public:
+    void logEvent(PacketFlow& flow, Logged& location, FlowEvent ev, mem_b bytes, uint64_t pkts);
+    static string event_to_str(RawLogEvent& event);
+};
 
 class TrafficLoggerSimple : public TrafficLogger {
  public:

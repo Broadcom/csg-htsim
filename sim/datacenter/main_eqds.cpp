@@ -53,6 +53,7 @@ int main(int argc, char **argv) {
     queue_type qt = COMPOSITE;
 
     bool log_sink = false;
+    bool log_flow_events = true;
     bool rts = false;
     bool log_tor_downqueue = false;
     bool log_tor_upqueue = false;
@@ -149,8 +150,8 @@ int main(int argc, char **argv) {
             cout << "host queue_type "<< snd_type << endl;
             i++;
         } else if (!strcmp(argv[i],"-log")){
-            if (!strcmp(argv[i+1], "sink")) {
-                log_sink = true;
+            if (!strcmp(argv[i+1], "flow_events")) {
+                log_flow_events = true;
             } else if (!strcmp(argv[i+1], "sink")) {
                 cout << "logging sinks\n";
                 log_sink = true;
@@ -390,6 +391,11 @@ int main(int argc, char **argv) {
         traffic_logger = new TrafficLoggerSimple();
         logfile.addLogger(*traffic_logger);
     }
+    FlowEventLoggerSimple* event_logger = NULL;
+    if (log_flow_events) {
+        event_logger = new FlowEventLoggerSimple();
+        logfile.addLogger(*event_logger);
+    }
 
     //EqdsSrc::setMinRTO(50000); //increase RTO to avoid spurious retransmits
     //EqdsSrc::setPathEntropySize(path_entropy_size);
@@ -483,6 +489,10 @@ int main(int argc, char **argv) {
         eqds_src->setCwnd(cwnd*Packet::data_packet_size());
         eqds_srcs.push_back(eqds_src);
         eqds_src->setDst(dest);
+
+        if (log_flow_events) {
+            eqds_src->logFlowEvents(*event_logger);
+        }
         
         eqds_snk = new EqdsSink(NULL,pacers[dest]);
         eqds_src->setName("Eqds_" + ntoa(src) + "_" + ntoa(dest));

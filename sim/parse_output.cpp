@@ -371,6 +371,9 @@ int main(int argc, char** argv){
             case Logger::STRACK_TRAFFIC:
                 out = STrackTrafficLogger::event_to_str(event);
                 break;
+            case Logger::FLOW_EVENT:
+                out = FlowEventLoggerSimple::event_to_str(event);
+                break;
             }
             bool do_output = true;
             for (size_t f=0; f < filters.size(); f++) {
