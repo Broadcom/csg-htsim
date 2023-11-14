@@ -346,7 +346,7 @@ int main(int argc, char **argv) {
     queuesize = memFromPkt(queuesize);
 
     //2 priority queues; 3 hops for incast
-    EqdsSrc::_min_rto = timeFromUs(10 + queuesize * 6.0 * 8 * 1000000 / linkspeed);
+    EqdsSrc::_min_rto = timeFromUs(50 + queuesize * 6.0 * 8 * 1000000 / linkspeed);
 
     cout << "Setting queuesize to " << queuesize << endl;
     cout << "Setting min RTO to " << timeAsUs(EqdsSrc::_min_rto) << endl;
