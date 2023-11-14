@@ -22,7 +22,7 @@ public:
 };
 
 class EqdsDataPacket : public EqdsBasePacket {
-    using Packet::set_route;
+    //using Packet::set_route;
 public:
 
     enum PacketType {DATA = 0, SPECULATIVE = 1, RTX = 2};
@@ -33,7 +33,10 @@ public:
                                          PacketType pkttype, uint64_t pull_target,
                                          uint32_t destination = UINT32_MAX) {
         EqdsDataPacket* p = _packetdb.allocPacket();
-        p->set_route(flow, route, full_size, seqno);  // also sets size and seqno
+        //p->set_route(flow, route, full_size, seqno);  // also sets size and seqno
+        p->set_route(route);  // Set route
+        p->set_attrs(flow, full_size, seqno);// also sets size and seqno
+
         p->_type = EQDSDATA;
         p->_is_header = false;
         p->_bounced = false;
@@ -253,11 +256,14 @@ protected:
 };
 
 class EqdsRtsPacket : public EqdsDataPacket {
-    using Packet::set_route;
+    //using Packet::set_route;
 public:    
     inline static EqdsRtsPacket* newpkt(PacketFlow& flow, const Route &route, seq_t seqno, seq_t pull_target,bool to,uint32_t destination = UINT32_MAX) {
         EqdsRtsPacket* p = _packetdb.allocPacket();
-        p->set_route(flow,route,ACKSIZE,0);
+        //p->set_route(flow,route,ACKSIZE,0);
+        p->set_route(route);  // Set route
+        p->set_attrs(flow, ACKSIZE, seqno);// also sets size and seqno
+
         //p->set_attrs(flow, ACKSIZE, 0);
         p->_type = EQDSRTS;
         p->_is_header = true;

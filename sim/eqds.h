@@ -56,7 +56,6 @@ private:
     mem_b _last_pktsize;
 };
 
-
 class EqdsSrc : public EventSource, public PacketSink, public TriggerTarget {
  public:
     struct Stats {

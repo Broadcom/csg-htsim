@@ -1208,7 +1208,7 @@ uint32_t EqdsSink::reorder_buffer_size() {
     uint32_t count = 0;
     // it's not very efficient to count each time, but if we only do
     // this occasionally when the sink logger runs, it should be OK.
-    for (uint i = 0; i < eqdsMaxInFlightPkts; i++) {
+    for (int i = 0; i < eqdsMaxInFlightPkts; i++) {
         if (_out_of_order[i]) count++;
     }
     return count;

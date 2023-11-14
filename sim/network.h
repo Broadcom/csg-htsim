@@ -150,6 +150,7 @@ class Packet {
     uint32_t nexthop() const {return _nexthop;} // only intended to be used for debugging
     virtual void set_route(const Route &route);
     virtual void set_route(const Route *route=nullptr);
+    virtual void set_route(PacketFlow& flow, const Route &route, int pkt_size, packetid_t id);
 
     void set_ingress_queue(LosslessInputQueue* t){assert(!_ingressqueue); _ingressqueue = t;}
     LosslessInputQueue* get_ingress_queue(){assert(_ingressqueue); return _ingressqueue;}
@@ -159,7 +160,6 @@ class Packet {
     
     string str() const;
  protected:
-    virtual void set_route(PacketFlow& flow, const Route &route, int pkt_size, packetid_t id);
     void set_attrs(PacketFlow& flow, int pkt_size, packetid_t id);
 
     static int _data_packet_size; // default size of a TCP or NDP data packet,
