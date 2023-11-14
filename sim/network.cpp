@@ -205,23 +205,38 @@ Packet::str() const {
         s = "TofinoTrimPacket";
         break;        
     case ROCE:
-    s = "ROCE";
-    break;
+        s = "ROCE";
+        break;
     case ROCEACK:
-    s = "ROCEACK";
-    break;
+        s = "ROCEACK";
+        break;
     case ROCENACK:
-    s = "ROCENACK";
-    break;
+        s = "ROCENACK";
+        break;
     case HPCC:
-    s = "HPCC";
-    break;
+        s = "HPCC";
+        break;
     case HPCCACK:
-    s = "HPCCACK";
-    break;
+        s = "HPCCACK";
+        break;
     case HPCCNACK:
-    s = "HPCCNACK";
-    break;
+        s = "HPCCNACK";
+        break;
+    case EQDSDATA:
+        s = "EQDSDATA";
+        break;
+    case EQDSNACK:
+        s = "EQDSNACK";
+        break;
+    case EQDSACK:
+        s = "EQDSACK";
+        break;
+    case EQDSPULL:
+        s = "EQDSPULL";
+        break;
+    case EQDSRTS:
+        s = "EQDSRTS";
+        break;
     }
     return s;
 }
