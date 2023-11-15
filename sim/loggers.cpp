@@ -219,7 +219,6 @@ QueueLoggerSampling::doNextEvent()
 
 void
 QueueLoggerSampling::logQueue(BaseQueue& queue, QueueEvent ev, Packet &pkt) {
-    //cout << "logQueue\n";
     if (_queue==NULL) _queue=&queue;
     assert(&queue==_queue);
     _lastq = queue.queuesize();

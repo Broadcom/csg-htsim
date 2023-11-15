@@ -22,7 +22,6 @@ class Logfile;
 class RawLogEvent;
 class Logged;
 
-
 // keep track of all logged items so we can do ID->Name mapping later
 class LoggedManager {
 public:
@@ -68,7 +67,8 @@ class Logger {
                      STRACK_EVENT=29, STRACK_STATE=30, STRACK_TRAFFIC=31,
                      STRACK_SINK=32, STRACK_MEMORY=33,
                      EQDS_EVENT=38, EQDS_STATE=39, EQDS_RECORD=40,
-                     EQDS_SINK = 41, EQDS_MEMORY = 42, EQDS_TRAFFIC = 43, FLOW_EVENT = 44 };
+                     EQDS_SINK = 41, EQDS_MEMORY = 42, EQDS_TRAFFIC = 43,
+                     FLOW_EVENT = 44 };
     static string event_to_str(RawLogEvent& event);
     Logger() {};
     virtual ~Logger(){};
@@ -131,8 +131,8 @@ class TcpLogger  : public Logger {
 
 class SwiftLogger  : public Logger {
  public:
-    enum SwiftEvent { SWIFT_RCV=0, SWIFT_RCV_FR_END=1, SWIFT_RCV_FR=2, SWIFT_RCV_DUP_FR=3, 
-                    SWIFT_RCV_DUP=4, SWIFT_RCV_3DUPNOFR=5, 
+    enum SwiftEvent { SWIFT_RCV=0, SWIFT_RCV_FR_END=1, SWIFT_RCV_FR=2, SWIFT_RCV_DUP_FR=3,
+                    SWIFT_RCV_DUP=4, SWIFT_RCV_3DUPNOFR=5,
                     SWIFT_RCV_DUP_FASTXMIT=6, SWIFT_TIMEOUT=7 };
     enum SwiftState { SWIFTSTATE_CNTRL=0, SWIFTSTATE_SEQ=1 };
     enum SwiftRecord { AVE_CWND=0 };
@@ -186,7 +186,7 @@ class RoceLogger  : public Logger {
 class HPCCLogger  : public Logger {
  public:
     enum HPCCEvent { HPCC_RCV=0, HPCC_TIMEOUT=1 };
-    enum HPCCState { HPCCSTATE_ON=0, HPCCSTATE_OFF=0 };
+    enum HPCCState { HPCCSTATE_ON=1, HPCCSTATE_OFF=0 };
     enum HPCCRecord { AVE_RATE=0 };
     enum HPCCSinkRecord { RATE = 0 };
     enum HPCCMemoryRecord  {MEMORY = 0};

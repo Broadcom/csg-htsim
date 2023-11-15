@@ -17,13 +17,14 @@ class EqdsBasePacket : public Packet {
 public:
     typedef uint64_t seq_t;
     uint16_t _eqsrcid;  // source tunnel ID for the source.
-    uint16_t _eqtgtid;  // destination tunnel ID.
+    uint16_t _eqtgtid;  // destination tunnel ID. 
     const static int ACKSIZE=64; 
 };
 
 class EqdsDataPacket : public EqdsBasePacket {
     //using Packet::set_route;
 public:
+    
     enum PacketType {DATA = 0, SPECULATIVE = 1, RTX = 2};
     //typedef enum {_500B,_1KB,_2KB,_4KB} packet_size;   // need to handle arbitrary packet sizes at end of messages
   
@@ -33,9 +34,6 @@ public:
                                          uint32_t destination = UINT32_MAX) {
         EqdsDataPacket* p = _packetdb.allocPacket();
         p->set_route(flow, route, full_size, seqno);  // also sets size and seqno
-        //p->set_route(route);  // Set route
-        //p->set_attrs(flow, full_size, seqno);// also sets size and seqno
-
         p->_type = EQDSDATA;
         p->_is_header = false;
         p->_bounced = false;
@@ -269,9 +267,6 @@ public:
     inline static EqdsRtsPacket* newpkt(PacketFlow& flow, const Route& route, seq_t seqno, seq_t pull_target,bool to,uint32_t destination = UINT32_MAX) {
         EqdsRtsPacket* p = _packetdb.allocPacket();
         p->set_route(flow,route,ACKSIZE,0);
-        //p->set_route(&route);  // Set route
-        //p->set_attrs(flow, ACKSIZE, seqno);// also sets size and seqno
-
         //p->set_attrs(flow, ACKSIZE, 0);
         p->_type = EQDSRTS;
         p->_is_header = true;
