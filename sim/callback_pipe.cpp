@@ -25,7 +25,6 @@ CallbackPipe::doNextEvent() {
     Packet *pkt = _inflight_v[_next_pop].pkt;
     _next_pop = (_next_pop +1) % _size;
     _count--;    
-    pkt->flow().logTraffic(*pkt, *this,TrafficLogger::PKT_DEPART);
 
     // tell the packet to move itself on to the next hop
     if (_callback)
