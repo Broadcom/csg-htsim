@@ -10,7 +10,6 @@
 // Note: you never construct a new NdpPacket or NdpAck directly; 
 // rather you use the static method newpkt() which knows to reuse old packets from the database.
 
-#define ACKSIZE 64
 #define VALUE_NOT_SET -1
 //#define PULL_MAXPATHS 256 // maximum path ID that can be pulled
 
@@ -66,7 +65,7 @@ class RocePacket : public Packet {
     inline void set_ts(simtime_picosec ts) {_ts = ts;}
     inline uint32_t path_id() const {if (_pathid!=UINT32_MAX) return _pathid; else return _route->path_id();}
     virtual PktPriority priority() const {return Packet::PRIO_LO;}
-
+    const static int ACKSIZE=64;
  protected:
     seq_t _seqno;
     simtime_picosec _ts;
@@ -83,7 +82,7 @@ class RoceAck : public Packet {
                                  seq_t ackno,
                                  uint32_t destination = UINT32_MAX) {
                 RoceAck* p = _packetdb.allocPacket();
-                p->set_route(flow,route,ACKSIZE,ackno);
+                p->set_route(flow,route,RocePacket::ACKSIZE,ackno);
                 p->_type = ROCEACK;
                 p->_is_header = true;
                 p->_ackno = ackno;
@@ -116,7 +115,7 @@ class RoceNack : public Packet {
                                   seq_t ackno,
                                   uint32_t destination = UINT32_MAX) {
                 RoceNack* p = _packetdb.allocPacket();
-                p->set_route(flow,route,ACKSIZE,ackno);
+                p->set_route(flow,route,RocePacket::ACKSIZE,ackno);
                 p->_type = ROCENACK;
                 p->_is_header = true;
                 p->_ackno = ackno;

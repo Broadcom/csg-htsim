@@ -11,14 +11,14 @@
 // Note: you never construct a new EQDS packet directly; 
 // rather you use the static method newpkt() which knows to reuse old packets from the database.
 
-#define ACKSIZE 64
 #define VALUE_NOT_SET -1
 
 class EqdsBasePacket : public Packet {
 public:
     typedef uint64_t seq_t;
     uint16_t _eqsrcid;  // source tunnel ID for the source.
-    uint16_t _eqtgtid;  // destination tunnel ID. 
+    uint16_t _eqtgtid;  // destination tunnel ID.
+    const static int ACKSIZE=64; 
 };
 
 class EqdsDataPacket : public EqdsBasePacket {
@@ -60,10 +60,11 @@ public:
         return p;
     }
   
-    virtual inline void  strip_payload() {
+    virtual inline void strip_payload() {
         Packet::strip_payload(); 
         //only change the IP packet size, not the approximate one in the EQDS header. 
-        Packet::_size = ACKSIZE;_trim_hop = _nexthop;
+        Packet::_size = ACKSIZE;
+        _trim_hop = _nexthop;
         _trim_direction = _direction;
     };
 

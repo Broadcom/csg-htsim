@@ -35,7 +35,7 @@ public:
     void set_traffic_logger(TrafficLogger* pktlogger);
 
     void startflow();
-    void setRate(linkspeed_bps r) {_bitrate = r;_packet_spacing = (simtime_picosec)((Packet::data_packet_size()+ACKSIZE) * (pow(10.0,12.0) * 8) / _bitrate);doNextEvent();}
+    void setRate(linkspeed_bps r) {_bitrate = r;_packet_spacing = (simtime_picosec)((Packet::data_packet_size()+HPCCPacket::ACKSIZE) * (pow(10.0,12.0) * 8) / _bitrate);doNextEvent();}
 
     inline void set_flowid(flowid_t flow_id) { _flow.set_flowid(flow_id);}
 
@@ -126,7 +126,7 @@ private:
     double measureInFlight(const HPCCAck& ack);
     HPCCPacket::seq_t computeWind(double U, bool updateWc);
 
-    inline void update_spacing(){_packet_spacing = (simtime_picosec)((Packet::data_packet_size()+ACKSIZE) * (pow(10.0,12.0) * 8) / _pacing_rate);}
+    inline void update_spacing(){_packet_spacing = (simtime_picosec)((Packet::data_packet_size()+HPCCPacket::ACKSIZE) * (pow(10.0,12.0) * 8) / _pacing_rate);}
 
     // Housekeeping
     HPCCLogger* _logger;

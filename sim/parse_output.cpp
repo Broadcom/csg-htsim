@@ -21,6 +21,7 @@ using namespace std;
 #include <vector>
 
 #include "loggers.h"
+#include "eqds_logger.h"
 
 struct eqint
 {

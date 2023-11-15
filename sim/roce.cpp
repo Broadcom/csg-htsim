@@ -74,7 +74,7 @@ RoceSrc::RoceSrc(RoceLogger* logger, TrafficLogger* pktlogger, EventList &eventl
 
     _state_send = READY;
     _time_last_sent = 0;
-    _packet_spacing = (simtime_picosec)((Packet::data_packet_size()+ACKSIZE) * (pow(10.0,12.0) * 8) / _bitrate);
+    _packet_spacing = (simtime_picosec)((Packet::data_packet_size()+RocePacket::ACKSIZE) * (pow(10.0,12.0) * 8) / _bitrate);
 }
 
 /*mem_b RoceSrc::queuesize(){
@@ -410,7 +410,7 @@ void RoceSink::receivePacket(Packet& pkt) {
         return;
     }
 
-    int size = p->size()-ACKSIZE; 
+    int size = p->size()-RocePacket::ACKSIZE; 
 
     if (seqno == _cumulative_ack+1) { // it's the next expected seq no
         _cumulative_ack = seqno + size - 1;

@@ -453,7 +453,7 @@ bool NdpSrc::is_bad_path() {
 /* Process a return-to-sender packet */
 void NdpSrc::processRTS(NdpPacket& pkt){
     assert(pkt.bounced());
-    pkt.unbounce(ACKSIZE + _mss);
+    pkt.unbounce(NdpPacket::ACKSIZE + _mss);
     
     _sent_times.erase(pkt.seqno());
     //resend from front of RTX
@@ -1525,7 +1525,7 @@ void NdpSink::receivePacket(Packet& pkt) {
     _path_lens[pkt.path_len()]++;
 #endif
 
-    int size = p->size()-ACKSIZE; // TODO: the following code assumes all packets are the same size
+    int size = p->size()-NdpPacket::ACKSIZE; // TODO: the following code assumes all packets are the same size
 
     if (last_packet) {
         // we've seen the last packet of this flow, but may not have
@@ -1814,7 +1814,7 @@ int NdpPullPacer::_pull_spacing_cdf_count = 0;
 NdpPullPacer::NdpPullPacer(EventList& event, linkspeed_bps linkspeed, double pull_rate_modifier)  : 
     EventSource(event, "ndp_pacer"), _last_pull(0)
 {
-    _packet_drain_time = (simtime_picosec)((Packet::data_packet_size()+ACKSIZE) * (pow(10.0,12.0) * 8) / linkspeed) / pull_rate_modifier;
+    _packet_drain_time = (simtime_picosec)((Packet::data_packet_size()+NdpPacket::ACKSIZE) * (pow(10.0,12.0) * 8) / linkspeed) / pull_rate_modifier;
   //cout << "Packet drain time " << timeAsUs(_packet_drain_time) << "us" << endl;
     _log_me = false;
     _pacer_no = 0;
@@ -2076,7 +2076,7 @@ NdpRTSPacer::NdpRTSPacer(EventList& event, linkspeed_bps linkspeed, double pull_
 {
     _last_rts = 0;
     _first = true;
-    _packet_drain_time = (simtime_picosec)((Packet::data_packet_size()+ACKSIZE) * (pow(10.0,12.0) * 8) / linkspeed) / pull_rate_modifier;
+    _packet_drain_time = (simtime_picosec)((Packet::data_packet_size()+NdpPacket::ACKSIZE) * (pow(10.0,12.0) * 8) / linkspeed) / pull_rate_modifier;
 }
 
 void NdpRTSPacer::enqueue_rts(NdpRTS* pkt){

@@ -11,7 +11,6 @@
 #include "swift.h"
 #include "strack.h"
 #include "ndp.h"
-#include "eqds.h"
 #include "roce.h"
 #include "hpcc.h"
 #include "mtcp.h"
@@ -66,7 +65,6 @@ class HPCCTrafficLogger : public TrafficLogger {
     void logTraffic(Packet& pkt, Logged& location, TrafficEvent ev);
     static string event_to_str(RawLogEvent& event);
 };
-
 
 class TcpLoggerSimple : public TcpLogger {
  public:
@@ -238,13 +236,6 @@ class NdpSinkLoggerSampling : public SinkLoggerSampling {
     virtual void doNextEvent();
  public:
     NdpSinkLoggerSampling(simtime_picosec period, EventList& eventlist);
-    static string event_to_str(RawLogEvent& event);
-};
-
-class EqdsSinkLoggerSampling : public SinkLoggerSampling {
-    virtual void doNextEvent();
- public:
-    EqdsSinkLoggerSampling(simtime_picosec period, EventList& eventlist);
     static string event_to_str(RawLogEvent& event);
 };
 

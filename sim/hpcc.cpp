@@ -488,7 +488,7 @@ void HPCCSink::receivePacket(Packet& pkt) {
         return;
     }
 
-    int size = p->size()-ACKSIZE; 
+    int size = p->size()-HPCCPacket::ACKSIZE; 
 
     if (seqno == _cumulative_ack+1) { // it's the next expected seq no
         _cumulative_ack = seqno + size - 1;

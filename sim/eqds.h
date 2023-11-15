@@ -10,10 +10,11 @@
 #include "trigger.h"
 #include "eqdspacket.h"
 
+
 #define timeInf 0
 //min RTO bound in us
 // *** don't change this default - override it by calling EqdsSrc::setMinRTO()
-#define DEFAULT_EQDS_RTO_MIN 200
+#define DEFAULT_EQDS_RTO_MIN 100
 
 template <typename T, unsigned Size>
 class ModularVector {
@@ -34,6 +35,7 @@ static const unsigned eqdsMaxInFlightPkts = 1 << 12;
 class EqdsPullPacer;
 class EqdsSink;
 class EqdsSrc;
+class EqdsLogger;
 
 // EqdsNIC aggregates EqdsSrcs that are on the same NIC.  It round
 // robins between active srcs when we're limited by the sending

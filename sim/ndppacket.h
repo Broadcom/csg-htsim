@@ -11,7 +11,7 @@
 // Note: you never construct a new NdpPacket or NdpAck directly; 
 // rather you use the static method newpkt() which knows to reuse old packets from the database.
 
-#define ACKSIZE 64
+//#define ACKSIZE 64
 #define VALUE_NOT_SET -1
 //#define PULL_MAXPATHS 256 // maximum path ID that can be pulled
 
@@ -102,7 +102,7 @@ public:
             return Packet::PRIO_LO;
         }
     }
-
+    const static int ACKSIZE=64; 
 protected:
     seq_t _seqno;
     seq_t _pacerno;  // the pacer sequence number from the pull, seq space is common to all flows on that pacer
@@ -128,7 +128,7 @@ public:
                                  seq_t pacerno, seq_t ackno, seq_t cumulative_ack,
                                  seq_t pullno, int32_t path_id, uint32_t destination = UINT32_MAX) {
         NdpAck* p = _packetdb.allocPacket();
-        p->set_route(flow,route,ACKSIZE,ackno);
+        p->set_route(flow,route,NdpPacket::ACKSIZE,ackno);
         p->_type = NDPACK;
         p->_is_header = true;
         p->_bounced = false;
@@ -184,7 +184,7 @@ public:
                                   seq_t pacerno, seq_t ackno, seq_t cumulative_ack,
                                   seq_t pullno, int32_t path_id,uint32_t destination = UINT32_MAX) {
         NdpNack* p = _packetdb.allocPacket();
-        p->set_route(flow,route,ACKSIZE,ackno);
+        p->set_route(flow,route,NdpPacket::ACKSIZE,ackno);
         p->_type = NDPNACK;
         p->_is_header = true;
         p->_bounced = false;
@@ -238,7 +238,7 @@ public:
     inline static NdpRTS* newpkt(PacketFlow& flow, int grants,uint32_t destination = UINT32_MAX) {
         NdpRTS* p = _packetdb.allocPacket();
 
-        p->set_attrs(flow, ACKSIZE, 0);
+        p->set_attrs(flow, NdpPacket::ACKSIZE, 0);
         p->_type = NDPRTS;
         p->_is_header = true;
         p->_bounced = false;
@@ -251,7 +251,7 @@ public:
 
     inline static NdpRTS* newpkt(PacketFlow& flow, const route_t& route, int grants,uint32_t destination = UINT32_MAX) {
         NdpRTS* p = _packetdb.allocPacket();
-        p->set_route(flow, route, ACKSIZE, 0);
+        p->set_route(flow, route, NdpPacket::ACKSIZE, 0);
         assert(p->route());
 
         p->_type = NDPRTS;
@@ -291,7 +291,7 @@ public:
     inline static NdpPull* newpkt(NdpAck* ack) {
         NdpPull* p = _packetdb.allocPacket();
         assert(ack->route());
-        p->set_route(ack->flow(), *(ack->route()), ACKSIZE, ack->ackno());
+        p->set_route(ack->flow(), *(ack->route()), NdpPacket::ACKSIZE, ack->ackno());
 
         assert(p->route());
         p->_type = NDPPULL;
@@ -309,7 +309,7 @@ public:
     inline static NdpPull* newpkt(NdpNack* nack) {
         NdpPull* p = _packetdb.allocPacket();
         assert(nack->route());
-        p->set_route(nack->flow(), *(nack->route()), ACKSIZE, nack->ackno());
+        p->set_route(nack->flow(), *(nack->route()), NdpPacket::ACKSIZE, nack->ackno());
 
         assert(p->route());
 
@@ -327,7 +327,7 @@ public:
 
     inline static NdpPull* newpkt(NdpRTS* rts, seq_t cumack,seq_t pullno) {
         NdpPull* p = _packetdb.allocPacket();
-        p->set_attrs(rts->flow(), ACKSIZE, 0);
+        p->set_attrs(rts->flow(), NdpPacket::ACKSIZE, 0);
 
         p->_type = NDPPULL;
         p->_is_header = true;
@@ -345,7 +345,7 @@ public:
 
     inline static NdpPull* newpkt(NdpRTS* rts, const route_t& route,seq_t cumack,seq_t pullno,uint32_t destination = UINT32_MAX) {
         NdpPull* p = _packetdb.allocPacket();
-        p->set_route(rts->flow(), route, ACKSIZE, 0);
+        p->set_route(rts->flow(), route, NdpPacket::ACKSIZE, 0);
 
         assert(p->route());
 
@@ -366,7 +366,7 @@ public:
 
     inline static NdpPull* newpkt(PacketFlow& flow, const route_t& route,seq_t cumack,seq_t pullno,uint32_t destination = UINT32_MAX) {
         NdpPull* p = _packetdb.allocPacket();
-        p->set_route(flow, route, ACKSIZE, 0);
+        p->set_route(flow, route, NdpPacket::ACKSIZE, 0);
 
         assert(p->route());
 

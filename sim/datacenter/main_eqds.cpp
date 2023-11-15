@@ -9,7 +9,7 @@
 #include "pipe.h"
 #include "eventlist.h"
 #include "logfile.h"
-#include "loggers.h"
+#include "eqds_logger.h"
 #include "clock.h"
 #include "eqds.h"
 #include "compositequeue.h"

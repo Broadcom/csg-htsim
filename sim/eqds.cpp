@@ -1,9 +1,9 @@
 // -*- c-basic-offset: 4; indent-tabs-mode: nil -*-
-#include "eqds.h"
 #include <math.h>
+#include "eqds.h"
+#include "eqds_logger.h"
 
 using namespace std;
-
 
 // Static stuff
 
@@ -1087,7 +1087,7 @@ void EqdsSink::receivePacket(Packet &pkt) {
     }
 
     //packet is in window, count the bytes we got. 
-    _received_bytes += p->size() - ACKSIZE;
+    _received_bytes += p->size() - EqdsAckPacket::ACKSIZE;
 
     bool force_ack = false;
     if (EqdsSrc::_debug) cout << _nodename << " src " << _src->nodename() << " >>    cumulative ack was: " << _cumulative_ack << " flow " << _src->flow()->str() << endl;
@@ -1208,7 +1208,7 @@ uint32_t EqdsSink::reorder_buffer_size() {
     uint32_t count = 0;
     // it's not very efficient to count each time, but if we only do
     // this occasionally when the sink logger runs, it should be OK.
-    for (int i = 0; i < eqdsMaxInFlightPkts; i++) {
+    for (uint32_t i = 0; i < eqdsMaxInFlightPkts; i++) {
         if (_out_of_order[i]) count++;
     }
     return count;

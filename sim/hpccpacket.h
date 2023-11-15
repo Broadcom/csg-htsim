@@ -10,7 +10,6 @@
 // Note: you never construct a new NdpPacket or NdpAck directly; 
 // rather you use the static method newpkt() which knows to reuse old packets from the database.
 
-#define ACKSIZE 64
 #define VALUE_NOT_SET -1
 //#define PULL_MAXPATHS 256 // maximum path ID that can be pulled
 
@@ -82,7 +81,7 @@ public:
     virtual PktPriority priority() const {return Packet::PRIO_LO;}
     IntEntry _int_info[5];
     uint32_t _int_hop;
-
+    const static int ACKSIZE=64;
 protected:
     seq_t _seqno;
     simtime_picosec _ts;
@@ -100,7 +99,7 @@ public:
     inline static HPCCAck* newpkt(PacketFlow &flow, const Route &route, 
                                   seq_t ackno, uint32_t destination = UINT32_MAX) {
         HPCCAck* p = _packetdb.allocPacket();
-        p->set_route(flow,route,ACKSIZE,ackno);
+        p->set_route(flow,route,HPCCPacket::ACKSIZE,ackno);
         p->_type = HPCCACK;
         p->_is_header = true;
         p->_ackno = ackno;
@@ -123,7 +122,6 @@ public:
 
     IntEntry _int_info[5];
     uint32_t _int_hop;
-
 protected:
     seq_t _ackno;
     simtime_picosec _ts;
@@ -139,7 +137,7 @@ public:
                                    seq_t ackno,
                                    uint32_t destination = UINT32_MAX) {
         HPCCNack* p = _packetdb.allocPacket();
-        p->set_route(flow,route,ACKSIZE,ackno);
+        p->set_route(flow,route,HPCCPacket::ACKSIZE,ackno);
         p->_type = HPCCNACK;
         p->_is_header = true;
         p->_ackno = ackno;
@@ -161,6 +159,7 @@ protected:
     simtime_picosec _ts;
     static PacketDB<HPCCNack> _packetdb;
 };
+
 
 
 #endif
