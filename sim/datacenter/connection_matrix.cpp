@@ -752,7 +752,7 @@ bool ConnectionMatrix::load(istream& file){
                 if (tokens[i] == "start") {
                     i++;
                     double start = stof(tokens[i]);
-                    c->start = timeFromUs(start);
+                    c->start = start; // start is in picoseconds already
                 } else if (tokens[i] == "size") {
                     i++;
                     c->size = stoi(tokens[i]);
@@ -821,9 +821,9 @@ bool ConnectionMatrix::load(istream& file){
                                 i++;
                                 t->id = stoi(tokens[i]);
                                 if (t->id == 0) {
-                                                        cerr <<        "Trigger ID zero is not allowed\n";
-                                exit(1);
-                                                }
+                                    cerr << "Trigger ID zero is not allowed\n";
+                                    exit(1);
+                                }
                         } else if (tokens[i] == "count") {
                                 i++;
                                 t->count = stoi(tokens[i]);
@@ -888,7 +888,7 @@ bool ConnectionMatrix::load(istream& file){
                                 i++;
                                 f->link_id = stoi(tokens[i]);
                         } else {
-                                cerr << "Error: unknown failure attricute " << tokens[i] << " at line " << linecount << endl;
+                                cerr << "Error: unknown failure attribute " << tokens[i] << " at line " << linecount << endl;
                                 exit(1);
                         }
             }
