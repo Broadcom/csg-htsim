@@ -195,7 +195,6 @@ class HPCCLogger  : public Logger {
     virtual ~HPCCLogger(){};
 };
 
-
 class NdpTunnelLogger  : public Logger {
  public:
     enum NdpEvent { NDP_RCV=0, NDP_RCV_FR_END=1, NDP_RCV_FR=2, NDP_RCV_DUP_FR=3, 

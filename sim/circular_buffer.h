@@ -22,6 +22,7 @@ public:
     }
     CircularBuffer(int starting_size) 
     {
+
         _count = 0;
         _next_push = 0;
         _next_pop = 0;
@@ -75,7 +76,12 @@ public:
         return _queue[old_index];
     }
 
-    T& back() {
+    T& back() {  // badly named - prefer next_to_pop()
+        assert(_count > 0);
+        return _queue.at(_next_pop);
+    }
+
+    T& next_to_pop() {
         assert(_count > 0);
         return _queue.at(_next_pop);
     }

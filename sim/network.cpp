@@ -255,7 +255,7 @@ PacketFlow::PacketFlow(TrafficLogger* logger)
 void PacketFlow::set_flowid(flowid_t id) {
     if (id >= FLOW_ID_DYNAMIC_BASE) {
         cerr << "Illegal flow ID - manually allocation must be less than dynamic base\n";
-        exit(1);
+        assert(0);
     }
     _flow_id = id;
 }

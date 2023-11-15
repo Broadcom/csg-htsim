@@ -31,7 +31,7 @@ uint32_t RoceSrc::_global_rto_count = 0;
 simtime_picosec RoceSrc::_min_rto = timeFromUs((uint32_t)DEFAULT_RTO_MIN);
 
 RoceSrc::RoceSrc(RoceLogger* logger, TrafficLogger* pktlogger, EventList &eventlist, linkspeed_bps rate)
-    : BaseQueue(rate,eventlist,NULL), _logger(logger), _flow(pktlogger)
+    : BaseQueue(rate,eventlist,NULL), _flow(pktlogger), _logger(logger)
 {
     _mss = Packet::data_packet_size();
     _end_trigger = NULL;
@@ -384,6 +384,8 @@ void RoceSink::receivePacket(Packet& pkt) {
       pkt.free();
       return;
       }*/
+
+    assert(pkt.dst () == _src->_dstaddr);
 
     switch (pkt.type()) {
     case ROCE:

@@ -19,6 +19,7 @@ class Route {
     Route* clone() const;
     inline PacketSink* at(size_t n) const {return _sinklist.at(n);}
     void push_back(PacketSink* sink) {
+        assert(sink != NULL);
         _sinklist.push_back(sink);
         update_hopcount(sink);
     }

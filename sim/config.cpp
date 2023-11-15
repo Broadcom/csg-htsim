@@ -27,6 +27,11 @@ simtime_picosec timeFromSec(double secs) {
     return psecs;
 }
 
+simtime_picosec timeFromSec(int secs) {
+    simtime_picosec psecs = (simtime_picosec)(secs * 1000000000000llu);
+    return psecs;
+}
+
 simtime_picosec timeFromMs(double msecs) {
     simtime_picosec psecs = (simtime_picosec)(msecs * 1000000000);
     return psecs;
@@ -60,6 +65,11 @@ double timeAsMs(simtime_picosec ps) {
 double timeAsUs(simtime_picosec ps) {
     double us_ = (double)(ps / 1000000.0);
     return us_;
+}
+
+double timeAsNs(simtime_picosec ps) {
+    double ns_ = (double)(ps / 1000.0);
+    return ns_;
 }
 
 double timeAsSec(simtime_picosec ps) {

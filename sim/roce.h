@@ -118,14 +118,16 @@ public:
     static uint32_t _global_rto_count;  // keep track of the total number of timeouts across all srcs
     static simtime_picosec _min_rto;
 
+    PacketFlow _flow;
+
 private:
     // Housekeeping
     RoceLogger* _logger;
     Trigger* _end_trigger;
 
     TrafficLogger* _pktlogger;
+
     // Connectivity
-    PacketFlow _flow;
     string _nodename;
     uint32_t _node_num;
 

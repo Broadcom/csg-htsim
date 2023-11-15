@@ -36,8 +36,9 @@ simtime_picosec timeFromUs(uint32_t usecs);
 simtime_picosec timeFromNs(double nsecs);
 double timeAsMs(simtime_picosec ps);
 double timeAsUs(simtime_picosec ps);
+double timeAsNs(simtime_picosec ps);
 double timeAsSec(simtime_picosec ps);
-typedef sint64_t mem_b;
+typedef sint64_t mem_b; // memory in bytes (prefer over int for anything measured in bytes)
 mem_b memFromPkt(double pkts);
 
 typedef uint64_t linkspeed_bps;
@@ -47,7 +48,7 @@ linkspeed_bps speedFromMbps(double Mbitps);
 linkspeed_bps speedFromKbps(uint64_t Kbitps);
 linkspeed_bps speedFromPktps(double packetsPerSec);
 double speedAsPktps(linkspeed_bps bps);
-typedef int mem_pkts;
+typedef int mem_pkts; // memory in packets (prefer over int for anything that counts packets)
 
 typedef uint32_t addr_t;
 typedef uint16_t port_t;

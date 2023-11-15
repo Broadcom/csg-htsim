@@ -11,7 +11,7 @@ simtime_picosec BaseQueue::_update_period = timeFromUs(0.1);
 BaseQueue::BaseQueue(linkspeed_bps bitrate, EventList& eventlist, QueueLogger* logger)
     : EventSource(eventlist, "Queue"), _logger(logger), _bitrate(bitrate), _switch(NULL) {
     _ps_per_byte = (simtime_picosec)((pow(10.0, 12.0) * 8) / _bitrate);
-    _window = timeFromUs(5.0);
+    _window = timeFromUs(30.0);
     _busy = 0;
 
     _last_update_qs = 0;

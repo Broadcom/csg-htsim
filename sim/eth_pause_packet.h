@@ -23,7 +23,7 @@ class EthPausePacket : public Packet {
         p->_sleepTime = sleep;
         p->_senderID = senderid;
         p->_size = PAUSESIZE;
-        p->_flow = &(p->_defaultFlow);
+        p->_flow = &(Packet::_defaultFlow);
         return p;
     }
   
