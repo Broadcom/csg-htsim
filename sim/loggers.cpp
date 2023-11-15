@@ -1460,7 +1460,7 @@ string STrackSinkLoggerSampling::event_to_str(RawLogEvent& event) {
     return ss.str();
 }
 
-NdpSinkLoggerSampling::NdpSinkLoggerSampling(simtime_picosec period, 
+NdpSinkLoggerSampling::NdpSinkLoggerSampling(simtime_picosec period,
                                              EventList& eventlist):
     SinkLoggerSampling(period, eventlist, Logger::NDP_SINK, NdpLogger::RATE)
 {
