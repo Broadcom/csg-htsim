@@ -810,9 +810,6 @@ string RoceTrafficLogger::event_to_str(RawLogEvent& event) {
 
 
 
-
-
-
 #define HPCC_IS_ACK 1<<31
 #define HPCC_IS_NACK 1<<30
 #define HPCC_IS_HEADER 1<<28
@@ -1614,6 +1611,7 @@ string HPCCSinkLoggerSampling::event_to_str(RawLogEvent& event) {
     }
     return ss.str();
 }
+
 
 void QcnLoggerSimple::logQcn(QcnReactor &src, QcnEvent ev, double var3) {
     if (ev!=QcnLogger::QCN_SEND)
