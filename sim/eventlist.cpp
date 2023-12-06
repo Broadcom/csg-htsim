@@ -12,7 +12,7 @@ EventList* EventList::_theEventList = nullptr;
 
 EventList::EventList()
 {
-    if (EventList::_instanceCount != 0)
+    if (EventList::_instanceCount != 0) 
     {
         std::cerr << "There should be only one instance of EventList. Abort." << std::endl;
         abort();
@@ -22,10 +22,10 @@ EventList::EventList()
     EventList::_instanceCount += 1;
 }
 
-EventList&
+EventList& 
 EventList::getTheEventList()
 {
-    if (EventList::_theEventList == nullptr)
+    if (EventList::_theEventList == nullptr) 
     {
         EventList::_theEventList = new EventList();
     }
@@ -35,7 +35,7 @@ EventList::getTheEventList()
 void
 EventList::setEndtime(simtime_picosec endtime)
 {
-    _endtime = endtime;
+    EventList::_endtime = endtime;
 }
 
 bool
@@ -81,7 +81,6 @@ EventList::sourceIsPendingGetHandle(EventSource &src, simtime_picosec when)
     }
     return _pendingsources.end();
 }
-
 
 void
 EventList::triggerIsPending(TriggerTarget &target) {
@@ -132,4 +131,8 @@ void
 EventList::reschedulePendingSource(EventSource &src, simtime_picosec when) {
     cancelPendingSource(src);
     sourceIsPending(src, when);
+}
+
+EventSource::EventSource(const string& name) : EventSource(EventList::getTheEventList(), name) 
+{
 }
