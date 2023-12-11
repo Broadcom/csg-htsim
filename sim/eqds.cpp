@@ -1035,7 +1035,7 @@ void EqdsSink::receivePacket(Packet &pkt) {
     }
    
     if (p->header_only() && !is_rts) { //got a trimmed packet, send NACK.
-        if (EqdsSrc::_debug) cout << " >>    received trimmed packet " << p->epsn() << " flow" << _src->flow()->str() << endl;
+        /*if (EqdsSrc::_debug)*/ cout << " >>    received trimmed packet " << p->epsn() << " time " << timeAsNs(getSrc()->eventlist().now()) << " flow" << _src->flow()->str() << endl;
         _stats.trimmed++;
 
         //prioritize credits to this sender! Unclear by how much we should increase here. Assume MTU for now.

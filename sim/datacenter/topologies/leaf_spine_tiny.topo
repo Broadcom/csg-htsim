@@ -1,0 +1,17 @@
+Nodes 32
+Tiers 2
+Podsize 32
+
+Tier 0
+Downlink_speed_Gbps 100
+Radix_Down 8
+Radix_Up 2
+Downlink_Latency_ns 1000
+Switch_Latency_ns 0
+Oversubscribed 4
+
+Tier 1
+Downlink_speed_Gbps 100
+Radix_Down 4
+Downlink_Latency_ns 1000
+Switch_Latency_ns 0

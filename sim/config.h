@@ -48,6 +48,7 @@ linkspeed_bps speedFromMbps(double Mbitps);
 linkspeed_bps speedFromKbps(uint64_t Kbitps);
 linkspeed_bps speedFromPktps(double packetsPerSec);
 double speedAsPktps(linkspeed_bps bps);
+double speedAsGbps(linkspeed_bps bps);
 typedef int mem_pkts; // memory in packets (prefer over int for anything that counts packets)
 
 typedef uint32_t addr_t;

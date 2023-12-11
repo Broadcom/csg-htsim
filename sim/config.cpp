@@ -115,6 +115,11 @@ double speedAsPktps(linkspeed_bps bps) {
     return pktps;
 }
 
+double speedAsGbps(linkspeed_bps bps) {
+    double gbps = ((double)bps)/1000000000.0;
+    return gbps;
+}
+
 mem_pkts memFromPkts(double pkts) {
     return (int)(ceil(pkts));
 }

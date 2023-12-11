@@ -447,6 +447,11 @@ int main(int argc, char **argv) {
     FatTreeTopology* top;
     if (topo_file) {
         top = FatTreeTopology::load(topo_file, qlf, eventlist, queuesize, qt, snd_type);
+        if (top->no_of_nodes() != no_of_nodes) {
+            cerr << "Mismatch between connection matrix (" << no_of_nodes << " nodes) and topology ("
+                 << top->no_of_nodes() << " nodes)" << endl;
+            exit(1);
+        }
     } else {
         FatTreeTopology::set_tiers(tiers);
         top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, qlf, 

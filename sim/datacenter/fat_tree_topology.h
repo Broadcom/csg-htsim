@@ -70,7 +70,7 @@ public:
     FatTreeTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize, QueueLoggerFactory* logger_factory,
                     EventList* ev,FirstFit* f, queue_type qt, queue_type sender_qt, uint32_t fail);
 
-    static void set_tier_parameters(int tier, int radix_up, int radix_down, int bundlesize, linkspeed_bps downlink_speed, int oversub);
+    static void set_tier_parameters(int tier, int radix_up, int radix_down, mem_b queue_up, mem_b queue_down, int bundlesize, linkspeed_bps downlink_speed, int oversub);
 
     void init_network();
     virtual vector<const Route*>* get_bidir_paths(uint32_t src, uint32_t dest, bool reverse);
@@ -106,6 +106,8 @@ public:
     uint32_t bundlesize(int tier) const {return _bundlesize[tier];}
     uint32_t radix_up(int tier) const {return _radix_up[tier];}
     uint32_t radix_down(int tier) const {return _radix_down[tier];}
+    uint32_t queue_up(int tier) const {return _queue_up[tier];}
+    uint32_t queue_down(int tier) const {return _queue_down[tier];}
 
     void add_failed_link(uint32_t type, uint32_t switch_id, uint32_t link_id);
 
@@ -170,6 +172,7 @@ private:
     static FatTreeTopology* load(istream& file, QueueLoggerFactory* logger_factory, EventList& eventlist,
                                  mem_b queuesize, queue_type q_type, queue_type sender_q_type);
     void set_linkspeeds(linkspeed_bps linkspeed);
+    void set_queue_sizes(mem_b queuesize);
     int64_t find_lp_switch(Queue* queue);
     int64_t find_up_switch(Queue* queue);
     int64_t find_core_switch(Queue* queue);
@@ -207,11 +210,14 @@ private:
     static uint32_t _radix_down[3];
     static uint32_t _radix_up[2];
 
+    // switch queue size used.  Eg _queue_down[0] = 32 indicates 32 downlinks from ToRs.  _queue_up[2] should be zero in a 3-tier topology.  
+    static mem_b _queue_down[3];
+    static mem_b _queue_up[2];
+
     // number of hosts in a pod.  
     static uint32_t _hosts_per_pod; 
     
     uint32_t _no_of_nodes;
-    mem_b _queuesize;
     simtime_picosec _hop_latency,_switch_latency;
 };
 
