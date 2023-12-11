@@ -34,7 +34,7 @@ int DEFAULT_NODES = 128;
 EventList eventlist;
 
 void exit_error(char* progr) {
-    cout << "Usage " << progr << " [-nodes N]\n\t[-conns C]\n\t[-cwnd cwnd_size]\n\t[-q queue_size]\n\t[-oversubscribed_cc] Use receiver-driven AIMD to reduce total window when trims are not last hop\n\t[-queue_type composite|random|lossless|lossless_input|]\n\t[-tm traffic_matrix_file]\n\t[-strat route_strategy (single,rand,perm,pull,ecmp,\n\tecmp_host path_count,ecmp_ar,ecmp_rr,\n\tecmp_host_ar ar_thresh)]\n\t[-log log_level]\n\t[-seed random_seed]\n\t[-end end_time_in_usec]\n\t[-mtu MTU]\n\t[-hop_latency x] per hop wire latency in us,default 1\n\t[-switch_latency x] switching latency in us, default 0\n\t[-host_queue_type  swift|prio|fair_prio]" << endl;
+    cout << "Usage " << progr << " [-nodes N]\n\t[-conns C]\n\t[-cwnd cwnd_size]\n\t[-q queue_size]\n\t[-oversubscribed_cc] Use receiver-driven AIMD to reduce total window when trims are not last hop\n\t[-queue_type composite|random|lossless|lossless_input|]\n\t[-tm traffic_matrix_file]\n\t[-strat route_strategy (single,rand,perm,pull,ecmp,\n\tecmp_host path_count,ecmp_ar,ecmp_rr,\n\tecmp_host_ar ar_thresh)]\n\t[-log log_level]\n\t[-seed random_seed]\n\t[-end end_time_in_usec]\n\t[-mtu MTU]\n\t[-hop_latency x] per hop wire latency in us,default 1\n\t[-switch_latency x] switching latency in us, default 0\n\t[-host_queue_type  swift|prio|fair_prio]\n\t[-logtime dt] sample time for sinklogger, etc" << endl;
     exit(1);
 }
 
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 
     bool log_sink = false;
     bool log_flow_events = true;
-    bool rts = false;
+
     bool log_tor_downqueue = false;
     bool log_tor_upqueue = false;
     bool log_traffic = false;
@@ -99,9 +99,6 @@ int main(int argc, char **argv) {
             end_time = atoi(argv[i+1]);
             cout << "endtime(us) "<< end_time << endl;
             i++;            
-        } else if (!strcmp(argv[i],"-rts")) {
-            rts = true;
-            cout << "rts enabled "<< endl;
         } else if (!strcmp(argv[i],"-nodes")) {
             no_of_nodes = atoi(argv[i+1]);
             cout << "no_of_nodes "<<no_of_nodes << endl;
@@ -346,7 +343,7 @@ int main(int argc, char **argv) {
     queuesize = memFromPkt(queuesize);
 
     //2 priority queues; 3 hops for incast
-    EqdsSrc::_min_rto = timeFromUs(50 + queuesize * 6.0 * 8 * 1000000 / linkspeed);
+    EqdsSrc::_min_rto = timeFromUs(150 + queuesize * 6.0 * 8 * 1000000 / linkspeed);
 
     cout << "Setting queuesize to " << queuesize << endl;
     cout << "Setting min RTO to " << timeAsUs(EqdsSrc::_min_rto) << endl;
@@ -402,7 +399,7 @@ int main(int argc, char **argv) {
     }
 
     //EqdsSrc::setMinRTO(50000); //increase RTO to avoid spurious retransmits
-    //EqdsSrc::setPathEntropySize(path_entropy_size);
+    EqdsSrc::_path_entropy_size = path_entropy_size;
     
     EqdsSrc* eqds_src;
     EqdsSink* eqds_snk;
@@ -494,7 +491,7 @@ int main(int argc, char **argv) {
         int dest = crt->dst;
         //cout << "Connection " << crt->src << "->" <<crt->dst << " starting at " << crt->start << " size " << crt->size << endl;
 
-        eqds_src = new EqdsSrc(traffic_logger, eventlist, *nics.at(src), rts);
+        eqds_src = new EqdsSrc(traffic_logger, eventlist, *nics.at(src));
         eqds_src->setCwnd(cwnd*Packet::data_packet_size());
         eqds_srcs.push_back(eqds_src);
         eqds_src->setDst(dest);
@@ -503,7 +500,7 @@ int main(int argc, char **argv) {
             eqds_src->logFlowEvents(*event_logger);
         }
         
-        eqds_snk = new EqdsSink(NULL,pacers[dest]);
+        eqds_snk = new EqdsSink(NULL,pacers[dest],*nics.at(dest));
         eqds_src->setName("Eqds_" + ntoa(src) + "_" + ntoa(dest));
         logfile.writeName(*eqds_src);
         eqds_snk->setSrc(src);

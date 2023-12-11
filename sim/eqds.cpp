@@ -2,6 +2,7 @@
 #include <math.h>
 #include "eqds.h"
 #include "eqds_logger.h"
+#include "circular_buffer.h"
 
 using namespace std;
 
@@ -15,7 +16,10 @@ int EqdsSrc::_global_node_count = 0;
 simtime_picosec EqdsSrc::_min_rto = timeFromUs((uint32_t)DEFAULT_EQDS_RTO_MIN);
 
 mem_b EqdsSink::_bytes_unacked_threshold = 16384;
-mem_b EqdsSink::_credit_per_pull = 4096;
+int EqdsSink::TGT_EV_SIZE = 7;
+
+/* if you change _credit_per_pull, fix pktTime in the Pacer too - this assumes one pull per MTU */
+EqdsBasePacket::pull_quanta EqdsSink::_credit_per_pull = 8; // uints of typically 512 bytes
 
 /* this default will be overridden from packet size*/
 uint16_t EqdsSrc::_hdr_size = 64;
@@ -38,30 +42,36 @@ EqdsNIC::EqdsNIC(EventList &eventList, linkspeed_bps linkspeed) :
     _send_end_time = 0;
     _last_pktsize = 0;
     _num_queued_srcs = 0;
+    _ratio_data = 1;
+    _ratio_control = 20;
+    _crt = 0;
 }
 
 // srcs call request_sending to see if they can send now.  If the
 // answer is no, they'll be called back when it's time to send.
 bool EqdsNIC::requestSending(EqdsSrc& src) {
+    if (EqdsSrc::_debug) {
+        cout << src.nodename() << " requestSending at " << timeAsUs(EventList::getTheEventList().now()) << endl;
+    }
     if (_send_end_time >= eventlist().now()) {
         // we're already sending
-        if (_num_queued_srcs == 0) {
+        if (_num_queued_srcs == 0 && _control.empty()) {
             // need to schedule the callback
             eventlist().sourceIsPending(*this,_send_end_time);
-            assert(_num_queued_srcs == 0);
         }
         _num_queued_srcs += 1;
         _active_srcs.push_back(&src);
         return false;
     }
-    assert(_num_queued_srcs == 0);
+    assert (_num_queued_srcs == 0 && _control.empty());
     return true;
 }
 
 // srcs call startSending when they are allowed to actually send
 void EqdsNIC::startSending(EqdsSrc& src, mem_b pkt_size) {
-    //if (EqdsSrc::_debug) cout << "startSending at " << timeAsUs(eventlist().now()) << endl;
-    // sanity checks - remove later 
+    if (EqdsSrc::_debug) {
+        cout << src.nodename() << " startSending at " << timeAsUs(EventList::getTheEventList().now()) << endl;
+    }
     if (_num_queued_srcs > 0) {
         EqdsSrc *queued_src = _active_srcs.front();
         _active_srcs.pop_front();
@@ -72,33 +82,160 @@ void EqdsNIC::startSending(EqdsSrc& src, mem_b pkt_size) {
     assert(eventlist().now() >= _send_end_time);
 
     _send_end_time = eventlist().now() + (pkt_size * 8 * timeFromSec(1.0))/_linkspeed;
-    if (_num_queued_srcs > 0) {
+    if (_num_queued_srcs > 0 || !_control.empty()) {
         eventlist().sourceIsPending(*this,_send_end_time);
     }
 }
 
 // srcs call cantSend when they previously requested to send, and now its their turn, they can't for some reason.
 void EqdsNIC::cantSend(EqdsSrc& src) {
-    _num_queued_srcs--;
-    assert(_num_queued_srcs >= 0);
-    EqdsSrc *queued_src = _active_srcs.front();
-    _active_srcs.pop_front();
-    assert(queued_src == &src);
-    assert(eventlist().now() >= _send_end_time);
-
-    if (_num_queued_srcs > 0) {
-        // give the next src a chance.
-        queued_src = _active_srcs.front();
-        queued_src->timeToSend();
+    if (EqdsSrc::_debug) {
+        cout << src.nodename() << " cantSend at " << timeAsUs(EventList::getTheEventList().now()) << endl;
     }
+
+    if (_num_queued_srcs == 0 && _control.empty()) {
+        // it was an immediate send, so nothing to do if we can't send after all
+        return;
+    }
+    if (_num_queued_srcs>0){
+        _num_queued_srcs--;
+
+        EqdsSrc *queued_src = _active_srcs.front();
+        _active_srcs.pop_front();
+
+        assert(queued_src == &src);
+        assert(eventlist().now() >= _send_end_time);
+
+        if (_num_queued_srcs > 0) {
+            // give the next src a chance.
+            queued_src = _active_srcs.front();
+            queued_src->timeToSend();
+            return;
+        }
+    }
+    if (!_control.empty()){
+        //need to send a control packet, since we didn't manage to send a data packet.
+        Packet* p = _control.front();
+        _control.pop_front();
+        p->sendOn();
+
+        simtime_picosec delta = ((simtime_picosec)p->size() * 8 * timeFromSec(1.0))/_linkspeed;
+
+        if (EqdsSrc::_debug) cout << "NIC "<< this <<" send control of size " << p->size() << " duration " <<  timeAsUs(delta) << endl;
+        _control_size -= p->size();
+
+        _send_end_time = eventlist().now() + delta;
+
+        if (_num_queued_srcs > 0 || !_control.empty()) {
+            eventlist().sourceIsPending(*this,_send_end_time);
+        }
+    }
+}
+
+bool EqdsNIC::sendControlPacket(EqdsBasePacket* pkt){
+    //pkt->sendOn();
+    _control_size += pkt->size();
+    _control.push_back(pkt);
+
+    if (EqdsSrc::_debug) {
+        cout << "NIC " << this << " request to send control packet of type " << pkt->str() << " control queue size " <<_control_size << " " << _control.size() << endl;
+    }
+
+    if (_send_end_time >= eventlist().now()) {
+        if (EqdsSrc::_debug) {
+            cout << "NIC sendControlPacket " << this << " already sending " << timeAsUs(_send_end_time) << " >= " << eventlist().now() << endl;
+        }
+        // we're in the process of sending but nobody is active, need to schedule next event
+        if (_num_queued_srcs == 0 && _control.size()==1 ) {
+            if (EqdsSrc::_debug) {
+                cout << "NIC sendControlPacket" << this << " schedule event " << timeAsUs(_send_end_time) << " now is " << eventlist().now() << endl;
+            }
+            // need to schedule the callback, because noone else has done so.
+            eventlist().sourceIsPending(*this,_send_end_time);
+        }
+    }
+    else  {
+        //send now!
+        _send_end_time = eventlist().now();
+        doNextEvent();
+    }
+
+    //could return false to mimick too many control packets.
+
+    //return true to indicate that the packet was accepted for transmission
+    return true;
 }
 
 void EqdsNIC::doNextEvent() {
     assert(eventlist().now() == _send_end_time);
-    assert(_num_queued_srcs > 0);
-    // it's time for the next source to send
-    EqdsSrc *queued_src = _active_srcs.front();
-    queued_src->timeToSend();
+    assert(_num_queued_srcs > 0 || !_control.empty());
+
+    if (EqdsSrc::_debug)
+        cout << "NIC " << this << " doNextEvent at " << timeAsUs(eventlist().now()) << endl;
+
+    if (_num_queued_srcs>0 && !_control.empty()){
+        _crt++;
+
+        if (_crt >= (_ratio_control+_ratio_data))
+            _crt = 0;
+
+        if (EqdsSrc::_debug) {
+            cout << "NIC " << this << " round robin time between srcs " << _num_queued_srcs << " and control " << _control.size() << " " << _crt;
+        }
+
+        if (_crt< _ratio_data){
+            // it's time for the next source to send
+            EqdsSrc *queued_src = _active_srcs.front();
+            queued_src->timeToSend();
+
+            if (EqdsSrc::_debug) cout << " send data " << endl;
+
+            return;
+        } 
+        else {
+            Packet* p = _control.front();
+            _control.pop_front();
+            p->sendOn();
+
+            simtime_picosec delta = ((simtime_picosec)p->size() * 8 * timeFromSec(1.0))/_linkspeed;
+
+            if (EqdsSrc::_debug) cout << "NIC "<< this <<" send control of size " << p->size() << " duration " <<  timeAsUs(delta) << endl;
+            _control_size -= p->size();
+
+            _send_end_time = eventlist().now() + delta;
+
+            if (_num_queued_srcs > 0 || !_control.empty()) {
+                eventlist().sourceIsPending(*this,_send_end_time);
+            }
+            return;
+        } 
+    }
+
+    //either we have active sources or control packets, not both.
+
+    if(_num_queued_srcs>0){
+            EqdsSrc *queued_src = _active_srcs.front();
+            queued_src->timeToSend();
+
+            if (EqdsSrc::_debug) cout << "NIC " << this << " send data ONLY " << endl;
+    }
+    else {
+        assert(!_control.empty());
+        Packet* p = _control.front();
+        _control.pop_front();
+
+        if (EqdsSrc::_debug) cout << "NIC "<< this << " send control ONLY of size " << p->size() << " at " << timeAsUs(eventlist().now()) << endl;
+        
+        _control_size -= p->size();
+
+        p->sendOn();
+        _send_end_time = eventlist().now() + (p->size() * 8 * timeFromSec(1.0))/_linkspeed;
+
+        if (_num_queued_srcs > 0 || !_control.empty()) {
+            eventlist().sourceIsPending(*this,_send_end_time);
+        }
+        else if (EqdsSrc::_debug) cout << "NIC " << this << " do not reschedule " <<  timeAsUs(eventlist().now()) << endl;
+    }
 }
 
 ////////////////////////////////////////////////////////////////                                                                   
@@ -106,7 +243,7 @@ void EqdsNIC::doNextEvent() {
 ////////////////////////////////////////////////////////////////   
 
 EqdsSrc::EqdsSrc(TrafficLogger *trafficLogger, EventList &eventList, EqdsNIC &nic, bool rts) :
-    EventSource(eventList, "eqdsSrc"), _nic(nic), _rts(rts), _flow(trafficLogger)
+    EventSource(eventList, "eqdsSrc"), _nic(nic), _flow(trafficLogger)
 {
     _node_num = _global_node_count++;
     _nodename = "eqdsSrc " + to_string(_node_num);
@@ -126,9 +263,11 @@ EqdsSrc::EqdsSrc(TrafficLogger *trafficLogger, EventList &eventList, EqdsNIC &ni
     _unsent = 0;
     _cwnd = _maxwnd;
     _pull_target = 0;
-    _highest_pull = 0;
-    _received_credit = 0;
-    _speculative_credit = _maxwnd;
+    _pull = 0;
+    _state = INITIALIZE_CREDIT;
+    _speculating = false;
+    _credit_pull = 0;
+    _credit_spec = _maxwnd;
     _in_flight = 0;
     _highest_sent = 0;
     _send_blocked_on_nic = false;
@@ -146,9 +285,9 @@ EqdsSrc::EqdsSrc(TrafficLogger *trafficLogger, EventList &eventList, EqdsNIC &ni
     _bounces_received = 0;
 
     // reset path penalties
-    _path_penalties.resize(_no_of_paths);
+    _ev_skip_bitmap.resize(_no_of_paths);
     for (uint32_t i = 0; i < _no_of_paths; i++) {
-        _path_penalties[i] = 0;
+        _ev_skip_bitmap[i] = 0;
     }
     
     // by default, end silently
@@ -158,6 +297,9 @@ EqdsSrc::EqdsSrc(TrafficLogger *trafficLogger, EventList &eventList, EqdsNIC &ni
     _route = NULL;
     _mtu = Packet::data_packet_size();
     _mss = _mtu - _hdr_size;
+
+    _debug_src = EqdsSrc::_debug;
+    //if (_node_num == 490) _debug_src = true; // use this to enable debugging on one flow at a time
 }
 
 void EqdsSrc::connect(Route &routeout, Route &routeback, EqdsSink &sink, simtime_picosec start_time) {
@@ -173,7 +315,10 @@ void EqdsSrc::connect(Route &routeout, Route &routeback, EqdsSink &sink, simtime
     }
 }
 
-simtime_picosec EqdsSrc::computeRTO(simtime_picosec send_time) {
+simtime_picosec EqdsSrc::computeDynamicRTO(simtime_picosec send_time) {
+    //this code is never called, as per spec (fixed RTO setting).
+    //keeping it here just in case we want to experiment at some point with dynamic RTO calculation. 
+
     simtime_picosec raw_rtt = eventlist().now() - send_time;
 
     assert(raw_rtt > 0);
@@ -201,7 +346,7 @@ simtime_picosec EqdsSrc::computeRTO(simtime_picosec send_time) {
     if (_rto < _min_rto)
         _rto = _min_rto;
 
-    if (_debug) {
+    if (_debug_src) {
         cout << "RTO for flow " << _flow.str() << " computed at " << timeAsUs(_rto) << " will be lower bounded to " << timeAsUs(_min_rto) << endl;
     }
 
@@ -246,19 +391,19 @@ void EqdsSrc::receivePacket(Packet &pkt) {
 }
 
 void EqdsSrc::handleAckno(EqdsDataPacket::seq_t ackno) {
-    auto i = _active_packets.find(ackno);
-    if (i == _active_packets.end())
+    auto i = _tx_bitmap.find(ackno);
+    if (i == _tx_bitmap.end())
         return;
     //mem_b pkt_size = i->second.pkt_size;
     simtime_picosec send_time = i->second.send_time;
 
-    computeRTO(send_time);
+    //computeRTO(send_time);
 
     mem_b pkt_size = i->second.pkt_size;
     _in_flight -= pkt_size;
     assert(_in_flight >= 0);
-    if (EqdsSrc::_debug) cout << _nodename << " handleAck " << ackno << " flow " << _flow.str() << endl;
-    _active_packets.erase(i);
+    if (_debug_src) cout << _nodename << " handleAck " << ackno << " flow " << _flow.str() << endl;
+    _tx_bitmap.erase(i);
     _send_times.erase(send_time);
 
     if (send_time == _rto_send_time) {
@@ -277,8 +422,8 @@ void EqdsSrc::handleCumulativeAck(EqdsDataPacket::seq_t cum_ack) {
         else break;
     }
 
-    auto i = _active_packets.begin();
-    while (i != _active_packets.end()) {
+    auto i = _tx_bitmap.begin();
+    while (i != _tx_bitmap.end()) {
         auto seqno = i->first;
         // cumulative ack is next expected packet, not yet received
         if (seqno >= cum_ack) {
@@ -288,13 +433,13 @@ void EqdsSrc::handleCumulativeAck(EqdsDataPacket::seq_t cum_ack) {
         mem_b pkt_size = i->second.pkt_size;
         simtime_picosec send_time = i->second.send_time;
 
-        computeRTO(send_time);
+        //computeRTO(send_time);
 
         _in_flight -= pkt_size;
         assert(_in_flight >= 0);
-        if (EqdsSrc::_debug) cout << _nodename << " handleCumAck " << seqno << " flow " << _flow.str() << endl;
-        _active_packets.erase(i);
-        i = _active_packets.begin();
+        if (_debug_src) cout << _nodename << " handleCumAck " << seqno << " flow " << _flow.str() << endl;
+        _tx_bitmap.erase(i);
+        i = _tx_bitmap.begin();
         _send_times.erase(send_time);
         if (send_time == _rto_send_time) {
             recalculateRTO();
@@ -302,11 +447,11 @@ void EqdsSrc::handleCumulativeAck(EqdsDataPacket::seq_t cum_ack) {
     }
 }
 
-void EqdsSrc::handlePull(mem_b pullno) {
-    if (pullno > _highest_pull) {
-        mem_b extra_credit = pullno - _highest_pull;
-        _received_credit += extra_credit;
-        _highest_pull = pullno;
+void EqdsSrc::handlePull(EqdsBasePacket::pull_quanta pullno) {
+    if (pullno > _pull) {
+        EqdsBasePacket::pull_quanta extra_credit = pullno - _pull;
+        _credit_pull += EqdsBasePacket::unquantize(extra_credit);
+        _pull = pullno;
     }
 }
 
@@ -316,11 +461,12 @@ bool EqdsSrc::checkFinished(EqdsDataPacket::seq_t cum_ack) {
         // if (EqdsSrc::_debug) cout << _nodename << " checkFinished done sending " << " cum_acc " << cum_ack << " mss " << _mss << " c*m " << cum_ack * _mss << endl;
         return true;
     }
-    if (EqdsSrc::_debug) 
+    if (_debug_src) 
         cout << _nodename << " checkFinished " << " cum_acc " << cum_ack << " mss " << _mss << " RTS sent " << _rts_packets_sent << " total bytes " << (cum_ack - _rts_packets_sent) * _mss << " flow_size " << _flow_size << " done_sending " << _done_sending << endl;
 
     if ((((mem_b)cum_ack -_rts_packets_sent) * _mss) >= _flow_size) {
         cout << "Flow " << _name << " flowId " << flowId() << " " << _nodename << " finished at " << timeAsUs(eventlist().now()) << " total packets " << cum_ack << " RTS " << _rts_packets_sent << " total bytes " << ((mem_b)cum_ack - _rts_packets_sent) * _mss << endl;
+        _state = IDLE;
         if (_end_trigger) {
             _end_trigger->activate();
         }
@@ -337,15 +483,17 @@ void EqdsSrc::processAck(const EqdsAckPacket& pkt) {
     auto cum_ack = pkt.cumulative_ack();
     handleCumulativeAck(cum_ack);
 
-    if (EqdsSrc::_debug) 
+    if (_debug_src) 
         cout << _nodename << " processAck cum_ack: " << cum_ack << " flow " << _flow.str() << endl;
  
     auto ackno = pkt.ref_ack();
     uint64_t bitmap = pkt.bitmap();
+    if (_debug_src)
+        cout << "    ref_ack: " << ackno << " bitmap: " << bitmap << endl;
     while (bitmap > 0) { 
         if (bitmap & 1) {
-            if (EqdsSrc::_debug) 
-                cout << "Sack " << ackno << " flow " << _flow.str() << endl;
+            if (_debug_src) 
+                cout << "    Sack " << ackno << " flow " << _flow.str() << endl;
 
             handleAckno(ackno);
         }
@@ -353,27 +501,29 @@ void EqdsSrc::processAck(const EqdsAckPacket& pkt) {
         bitmap >>= 1;
     }
 
-    auto pullno = pkt.pullno();
-    handlePull(pullno);
+    //auto pullno = pkt.pullno();
+    //handlePull(pullno);
 
     // handle ECN echo
     if (pkt.ecn_echo()) {
         penalizePath(pkt.ev(), 1);
     }
 
-    if (checkFinished(cum_ack))
+    if (checkFinished(cum_ack)) {
+        stopSpeculating();
         return;
+    }
 
-    clearSpeculativeCredit();
+    stopSpeculating();
     sendIfPermitted();
 }
 
 void EqdsSrc::processNack(const EqdsNackPacket& pkt) {
-    auto pullno = pkt.pullno();
-    handlePull(pullno);
+    //auto pullno = pkt.pullno();
+    //handlePull(pullno);
 
     auto nacked_seqno = pkt.ref_ack();
-    if (EqdsSrc::_debug) 
+    if (_debug_src) 
         cout << _nodename << " processNack nacked: " << nacked_seqno << " flow " <<_flow.str() << endl;
 
     uint16_t ev = pkt.ev();
@@ -381,24 +531,37 @@ void EqdsSrc::processNack(const EqdsNackPacket& pkt) {
     //bool ecn_echo = pkt.ecn_echo();
 
     // move the packet to the RTX queue
-    auto i = _active_packets.find(nacked_seqno);
-    if (i == _active_packets.end()) {
-        if (EqdsSrc::_debug) 
+    auto i = _tx_bitmap.find(nacked_seqno);
+    if (i == _tx_bitmap.end()) {
+        if (_debug_src) 
             cout << "Didn't find NACKed packet in _active_packets flow " << _flow.str() << endl;
-        // don't think this can happen in sim, but if it can, change abort to return
+
+        // this abort is here because this is unlikely to happen in
+        // simulation - when it does, it is usually due to a bug
+        // elsewhere.  But if you discover a case where this happens
+        // for real, remove the abort and uncomment the return below.
         abort();
+        // this can happen when the NACK arrives later than a cumulative ACK covering the NACKed packet.
+        //return;
     }
     mem_b pkt_size = i->second.pkt_size;
-    assert(pkt_size > _hdr_size); // check we're not seeing NACKed RTS packets.
+    
+    assert(pkt_size >= _hdr_size); // check we're not seeing NACKed RTS packets.
+    if (pkt_size == _hdr_size){
+        _stats.rts_nacks ++;
+    } 
     
     auto seqno = i->first;
     simtime_picosec send_time = i->second.send_time;
 
-    computeRTO(send_time);
+    //computeDynamicRTO(send_time);
 
-    if (EqdsSrc::_debug) cout << _nodename << " erasing send record, seqno: " << seqno << " flow " << _flow.str() << endl;
-    _active_packets.erase(i);
-    assert(_active_packets.find(seqno) == _active_packets.end()); // xxx remove when working
+    if (_debug_src) cout << _nodename << " erasing send record, seqno: " << seqno << " flow " << _flow.str() << endl;
+    _tx_bitmap.erase(i);
+    assert(_tx_bitmap.find(seqno) == _tx_bitmap.end()); // xxx remove when working
+
+    _in_flight -= pkt_size;
+    assert(_in_flight >= 0);
     
     _send_times.erase(send_time);
     queueForRtx(seqno, pkt_size);
@@ -408,22 +571,17 @@ void EqdsSrc::processNack(const EqdsNackPacket& pkt) {
     }
 
     penalizePath(ev, 1);
-    clearSpeculativeCredit();
+    stopSpeculating();
     sendIfPermitted();
 }
 
 void EqdsSrc::processPull(const EqdsPullPacket& pkt) {
-    auto cum_ack = pkt.cumulative_ack();
-    handleCumulativeAck(cum_ack);
-
     auto pullno = pkt.pullno();
-    if (EqdsSrc::_debug) cout << _nodename << " processPull " << pullno << " cum_ack " << cum_ack << " flow " << _flow.str() << endl;
+    if (_debug_src) cout << _nodename << " processPull " << pullno << " flow " << _flow.str() << endl;
 
     handlePull(pullno);
 
-    if (checkFinished(cum_ack))
-        return;
-
+    stopSpeculating();
     sendIfPermitted();
 }
 
@@ -437,7 +595,7 @@ void EqdsSrc::doNextEvent() {
 
 	    rtxTimerExpired();
     } else {
-        if (EqdsSrc::_debug) cout << "Starting flow " << _name << endl;                                                                                           
+        if (_debug_src) cout << "Starting flow " << _name << endl;                                                                                           
         startFlow();
     }
 }
@@ -448,28 +606,33 @@ void EqdsSrc::setFlowsize(uint64_t flow_size_in_bytes) {
 
 void EqdsSrc::startFlow() {
     _cwnd = _maxwnd;
-    _speculative_credit = _maxwnd;
-    if (EqdsSrc::_debug) cout << "startflow " <<  _flow._name <<  " CWND " << _cwnd << " at " << timeAsUs(eventlist().now()) << " flow " << _flow.str() << endl;
+    _credit_spec = _maxwnd;
+    if (_debug_src) cout << "startflow " <<  _flow._name <<  " CWND " << _cwnd << " at " << timeAsUs(eventlist().now()) << " flow " << _flow.str() << endl;
     if (_flow_logger) {
         _flow_logger->logEvent(_flow, *this, FlowEventLogger::START, _flow_size, 0);
     }
     clearRTO();
     _in_flight = 0;
     _pull_target = 0;
-    _highest_pull = 0;
+    _pull = 0;
     _unsent = _flow_size;
     _last_rts = 0;
     // backlog is total amount of data we expect to send, including headers
     _backlog = ceil(((double)_flow_size)/_mss) * _hdr_size + _flow_size;
+    _state = SPECULATING; 
+    _speculating = true;
     _send_blocked_on_nic = false;
-    while (_send_blocked_on_nic == false && credit() > _mtu && _unsent > 0) {
-        if (EqdsSrc::_debug) cout << "requestSending 0 "<< " flow " << _flow.str() << endl;
+    while (_send_blocked_on_nic == false && credit() > 0 && _unsent > 0) {
+        if (_debug_src) cout << "requestSending 0 "<< " flow " << _flow.str() << endl;
 
         bool can_i_send = _nic.requestSending(*this);
         if (can_i_send) {
+            // if we're here, there's no NIC queue
             mem_b sent_bytes = sendNewPacket();
             if (sent_bytes > 0) {
                 _nic.startSending(*this, sent_bytes);
+            } else {
+                _nic.cantSend(*this);
             }
         } else {
             _send_blocked_on_nic = true;
@@ -479,34 +642,41 @@ void EqdsSrc::startFlow() {
 }
 
 mem_b EqdsSrc::credit() const {
-    return _received_credit + _speculative_credit;
+    return _credit_pull + _credit_spec;
 }
 
-void EqdsSrc::clearSpeculativeCredit() {
-    // we just got an ack or nack.  Any speculative credit we used at
-    // startup should now be discarded because we've used enough of it
-    // to bootstrap a window.
-    //
-    // Note we may need to do something different here to handle bursty
-    // sources and speculative credit that isn't initial startup
-    // credit.  
-    _speculative_credit = 0;
+void EqdsSrc::stopSpeculating() {
+    // we just got an ack, nack or pull.  We need to stop speculating
+
+    _speculating = false;
+    if (_backlog > 0 && _state == SPECULATING) {
+        _state = COMMITTED;
+    } 
 }
 
-bool EqdsSrc::spendCredit(mem_b pktsize) {
-    assert(credit() >= pktsize);
-    bool speculative = false;
-    _received_credit -= pktsize;
-    if (_received_credit < 0) {
-        // need to spend speculative credit
-        _speculative_credit += _received_credit;
-        _received_credit = 0;
+bool EqdsSrc::spendCredit(mem_b pktsize, bool& speculative) {
+    assert(credit() > 0);
+    if (_credit_pull > 0) {
+        assert(_state == COMMITTED);
+        _credit_pull -= pktsize;
+        speculative = false;
+        return true;
+    } else if (_speculating && _credit_spec > 0) {
+        assert(_state == SPECULATING);
+        _credit_spec -= pktsize;
         speculative = true;
+        return true;
+    } else {
+        assert(_state == COMMITTED);
+        // we're not going to be sending right now, but we need to
+        // reduce speculative credit so that the pull target can
+        // advance
+        _credit_spec -= pktsize;
+        return false;
     }
-    return speculative;
 }
 
-mem_b EqdsSrc::computePullTarget() {
+EqdsBasePacket::pull_quanta EqdsSrc::computePullTarget() {
     mem_b pull_target = _backlog;
     if (pull_target > _cwnd + _mtu) {
         pull_target = _cwnd + _mtu;
@@ -514,20 +684,28 @@ mem_b EqdsSrc::computePullTarget() {
     if (pull_target > _maxwnd) {
         pull_target = _maxwnd;
     }
-    pull_target = pull_target + _highest_pull - _received_credit - _speculative_credit;
-    return pull_target;
+    pull_target -= (_credit_pull + _credit_spec);
+    EqdsBasePacket::pull_quanta quant_pull_target = EqdsBasePacket::quantize_ceil(pull_target) + _pull;
+    if (_debug_src)
+        cout << nodename() << " pull_target: " << EqdsBasePacket::unquantize(quant_pull_target) << " pull " << EqdsBasePacket::unquantize(_pull) << " diff " <<  EqdsBasePacket::unquantize(quant_pull_target - _pull) << endl;
+    return quant_pull_target;
 }
 
 void EqdsSrc::sendIfPermitted() {
     // send if the NIC, credit and window allow.
+
+    if (credit() <= 0) {
+        // can send if we have *any* credit, but we don't
+        return;
+    }
 
     // how large will the packet be?
     mem_b pkt_size = 0;
     if (_rtx_queue.empty()) {
         if (_backlog == 0) {
             // nothing to retransmit, and no backlog.  Nothing to do here.
-            if (_received_credit > 0) {
-                if (EqdsSrc::_debug) cout << "we have " << _received_credit << " bytes of credit, but nothing to use it on"<< " flow " << _flow.str() << endl;
+            if (_credit_pull > 0) {
+                if (_debug_src) cout << "we have " << _credit_pull << " bytes of credit, but nothing to use it on"<< " flow " << _flow.str() << endl;
             }
             return;
         }
@@ -543,9 +721,6 @@ void EqdsSrc::sendIfPermitted() {
         pkt_size = _rtx_queue.begin()->second;
     }
 
-    if (pkt_size > credit()) {
-        return;
-    }
 #ifdef USE_CWND
     if (pkt_size > _cwnd) {
         return;
@@ -558,12 +733,14 @@ void EqdsSrc::sendIfPermitted() {
     }
 
     // we can send if the NIC lets us.
-    if (EqdsSrc::_debug) cout << "requestSending 1\n";
+    if (_debug_src) cout << "requestSending 1\n";
     bool can_i_send = _nic.requestSending(*this);
     if (can_i_send) {
         mem_b sent_bytes = sendPacket();
         if (sent_bytes > 0) {
             _nic.startSending(*this, sent_bytes);
+        } else {
+            _nic.cantSend(*this);
         }
     } else {
         // we can't send yet, but NIC will call us back when we can
@@ -574,7 +751,8 @@ void EqdsSrc::sendIfPermitted() {
 
 // if sendPacket got called, we have already asked the NIC for
 // permission, and we've already got both credit and cwnd to send, so
-// we will be sending something...
+// we will likely be sending something (sendNewPacket can return 0 if
+// we only had speculative credit we're not allowed to use though)
 mem_b EqdsSrc::sendPacket() {
     if (_rtx_queue.empty()) {
         return sendNewPacket();
@@ -631,9 +809,9 @@ void EqdsSrc::penalizePath(uint16_t path_id, uint8_t penalty) {
     // _no_of_paths must be a power of 2
     uint16_t mask = _no_of_paths - 1;
     path_id &= mask;  // only take the relevant bits for an index
-    _path_penalties[path_id] += penalty;
-    if (_path_penalties[path_id] > _max_penalty) {
-        _path_penalties[path_id] = _max_penalty;
+    _ev_skip_bitmap[path_id] += penalty;
+    if (_ev_skip_bitmap[path_id] > _max_penalty) {
+        _ev_skip_bitmap[path_id] = _max_penalty;
     }
 }
 
@@ -641,8 +819,8 @@ uint16_t EqdsSrc::nextEntropy() {
     // _no_of_paths must be a power of 2
     uint16_t mask = _no_of_paths - 1;  
     uint16_t entropy = (_current_ev_index ^ _path_xor) & mask;
-    while (_path_penalties[entropy] > 0) {
-        _path_penalties[entropy]--;
+    while (_ev_skip_bitmap[entropy] > 0) {
+        _ev_skip_bitmap[entropy]--;
         _current_ev_index++;
         if (_current_ev_index == _no_of_paths) {
             _current_ev_index = 0;
@@ -663,7 +841,7 @@ uint16_t EqdsSrc::nextEntropy() {
 }
 
 mem_b EqdsSrc::sendNewPacket() {
-    if (EqdsSrc::_debug) cout << _nodename << " sendNewPacket highest_sent " << _highest_sent << " h*m " << _highest_sent * _mss << " backlog " << _backlog << " unsent " << _unsent << " flow " << _flow.str() << endl;
+    if (_debug_src) cout << _nodename << " sendNewPacket highest_sent " << _highest_sent << " h*m " << _highest_sent * _mss << " backlog " << _backlog << " unsent " << _unsent << " flow " << _flow.str() << endl;
     assert(_unsent > 0);
     assert(((mem_b)_highest_sent - _rts_packets_sent) * _mss < _flow_size);
     mem_b payload_size = _mss;
@@ -672,26 +850,37 @@ mem_b EqdsSrc::sendNewPacket() {
     }
     assert(payload_size > 0);
     mem_b full_pkt_size = payload_size + _hdr_size;
-    
+
+    // check we're allowed to send according to state machine
+    assert(credit() > 0);
+    bool speculative = false;
+    bool can_send = spendCredit(full_pkt_size, speculative);
+    if (!can_send) {
+        // we can't send because we're not in speculative mode and only had speculative credit
+        return 0;
+    }
+
     _backlog -= full_pkt_size;
     assert(_backlog >= 0);
     _unsent -= payload_size;
     assert(_backlog >= _unsent);
     _in_flight += full_pkt_size;
-    bool speculative = spendCredit(full_pkt_size);
-    auto ptype = EqdsDataPacket::DATA;
+    auto ptype = EqdsDataPacket::DATA_PULL;
     if (speculative) {
-        ptype = EqdsDataPacket::SPECULATIVE;
+        ptype = EqdsDataPacket::DATA_SPEC;
     }
     _pull_target = computePullTarget();
 
-    auto *p = EqdsDataPacket::newpkt(_flow, *_route, _highest_sent, full_pkt_size, ptype, _pull_target, _dstaddr);
+    auto *p = EqdsDataPacket::newpkt(_flow, *_route, _highest_sent, full_pkt_size, ptype, _pull_target, /*unordered=*/true, _dstaddr);
     uint16_t ev = nextEntropy();
     p->set_pathid(ev);
     p->flow().logTraffic(*p,*this,TrafficLogger::PKT_CREATESEND);
 
+    if (_backlog == 0 || _credit_pull < 0)
+        p->set_ar(true);
+
     createSendRecord(_highest_sent, full_pkt_size);
-    if (EqdsSrc::_debug) cout << _flow.str() << " sending pkt " << _highest_sent << " size " << full_pkt_size << " pull target " << _pull_target << " at " << timeAsUs(eventlist().now())<<endl;
+    if (_debug_src) cout << _flow.str() << " sending pkt " << _highest_sent << " size " << full_pkt_size << " pull target " << _pull_target << " ack request " << p->ar() << " at " << timeAsUs(eventlist().now())<<endl;
     p->sendOn();
     _highest_sent++;
     _new_packets_sent++;
@@ -703,20 +892,26 @@ mem_b EqdsSrc::sendRtxPacket() {
     assert(!_rtx_queue.empty());
     auto seq_no = _rtx_queue.begin()->first;
     mem_b full_pkt_size = _rtx_queue.begin()->second;
+    bool speculative = false;
+    bool can_send = spendCredit(full_pkt_size, speculative);
+    assert(!speculative); // I don't think this can happen, but remove this assert if we decide it can
+    if (!can_send) {
+        // we can't sent because we've only got speculative credit and we're not in speculating mode
+        return 0;
+    }
+    
     _rtx_queue.erase(_rtx_queue.begin());
     _in_flight += full_pkt_size;
-    spendCredit(full_pkt_size);
     auto *p = EqdsDataPacket::newpkt(_flow, *_route, seq_no, full_pkt_size,
-                                     EqdsDataPacket::DATA, _pull_target, _dstaddr);
+                                     EqdsDataPacket::DATA_RTX, _pull_target, /*unordered=*/true, _dstaddr);
     uint16_t ev = nextEntropy();
     p->set_pathid(ev);
     p->flow().logTraffic(*p,*this,TrafficLogger::PKT_CREATESEND);
-    _backlog -= full_pkt_size;
-    assert(_backlog >= 0);
 
     createSendRecord(seq_no, full_pkt_size);
 
-    if (EqdsSrc::_debug) cout << _nodename << " sending rtx pkt " << seq_no << " size " << full_pkt_size << " flow " << _flow.str() << " at " << timeAsUs(eventlist().now())<< endl;
+    if (_debug_src) cout << _nodename << " sending rtx pkt " << seq_no << " size " << full_pkt_size << " flow " << _flow.str() << " at " << timeAsUs(eventlist().now())<< endl;
+    p->set_ar(true);
     p->sendOn();
     _rtx_packets_sent++;
     startRTO(eventlist().now());
@@ -730,14 +925,17 @@ void EqdsSrc::sendRTS() {
         // a whole window.
         return;
     }
-    if (EqdsSrc::_debug) cout << _nodename << " sendRTS, route: " << _route << " flow " << _flow.str() << " at " << timeAsUs(eventlist().now()) << " last RTS " << timeAsUs(_last_rts) << endl;
+    if (_debug_src) cout << _nodename << " sendRTS, route: " << _route << " flow " << _flow.str() << " at " << timeAsUs(eventlist().now()) << " last RTS " << timeAsUs(_last_rts) << endl;
     createSendRecord(_highest_sent, _hdr_size);
     auto *p = EqdsRtsPacket::newpkt(_flow, *_route, _highest_sent, _hdr_size,
                                     _pull_target, _dstaddr);
     p->set_dst(_dstaddr);
     uint16_t ev = nextEntropy();
     p->set_pathid(ev);
-    p->sendOn();
+
+    //p->sendOn();
+    _nic.sendControlPacket(p);
+
     _highest_sent++;
     _rts_packets_sent++;
     _last_rts = eventlist().now();
@@ -746,24 +944,25 @@ void EqdsSrc::sendRTS() {
 
 void EqdsSrc::createSendRecord(EqdsBasePacket::seq_t seqno, mem_b full_pkt_size) {
     //assert(full_pkt_size > 64);
-    if (EqdsSrc::_debug) cout << _nodename << " createSendRecord seqno: " << seqno << " size " << full_pkt_size << endl;
-    assert(_active_packets.find(seqno) == _active_packets.end());
-    _active_packets.emplace(seqno, sendRecord(full_pkt_size, eventlist().now()));
+    if (_debug_src) cout << _nodename << " createSendRecord seqno: " << seqno << " size " << full_pkt_size << endl;
+    assert(_tx_bitmap.find(seqno) == _tx_bitmap.end());
+    _tx_bitmap.emplace(seqno, sendRecord(full_pkt_size, eventlist().now()));
     _send_times.emplace(eventlist().now(), seqno);
 }
 
 void EqdsSrc::queueForRtx(EqdsBasePacket::seq_t seqno, mem_b pkt_size) {
-    // need to increase the credit we'll ask for - as far as credit
-    // requesting, this acts like new data we need to send
-    _backlog += pkt_size;
-    
     assert(_rtx_queue.find(seqno) == _rtx_queue.end());
     _rtx_queue.emplace(seqno, pkt_size);
     sendIfPermitted();
 }
 
 void EqdsSrc::timeToSend() {
-    if (EqdsSrc::_debug) cout << "timeToSend" << " flow " << _flow.str() << endl;;
+    if (_debug_src) cout << "timeToSend" << " flow " << _flow.str() << " at " << timeAsUs(eventlist().now()) << endl;
+
+    if (_unsent == 0 && _rtx_queue.empty()){
+        _nic.cantSend(*this);
+        return; 
+    }
     // time_to_send is called back from the EqdsNIC when it's time for
     // this src to send.  To get called back, the src must have
     // previously told the NIC it is ready to send by calling
@@ -790,28 +989,34 @@ void EqdsSrc::timeToSend() {
     }
 #ifdef USE_CWND
     if (_cwnd < full_pkt_size) {
-        if (EqdsSrc::_debug) cout << "cantSend\n";
+        if (_debug_src) cout << "cantSend\n";
         _nic.cantSend(*this);
         return;
     }
 #endif
 
     // do we have enough credit?
-    if (credit() < full_pkt_size) {
-        if (EqdsSrc::_debug) cout << "cantSend"<< " flow " << _flow.str() << endl;;
+    if (credit() <= 0) {
+        if (_debug_src) cout << "cantSend"<< " flow " << _flow.str() << endl;;
         _nic.cantSend(*this);
         return;
     }
 
-    // OK, we're good to send.
+    // OK, we're probably good to send
+    mem_b bytes_sent = 0;
     if (_rtx_queue.empty()) {
-        sendNewPacket();
+        bytes_sent = sendNewPacket();
     } else {
-        sendRtxPacket();
+        bytes_sent = sendRtxPacket();
     }
 
     // let the NIC know we sent, so it can calculate next send time.
-    _nic.startSending(*this, full_pkt_size);
+    if (bytes_sent > 0) {
+        _nic.startSending(*this, full_pkt_size);
+    } else {
+        _nic.cantSend(*this);
+        return;
+    }
 
 #ifdef USE_CWND
     if (_cwnd < full_pkt_size) {
@@ -819,7 +1024,7 @@ void EqdsSrc::timeToSend() {
     }
 #endif
     // do we have enough credit to send again?
-    if (credit() < full_pkt_size) {
+    if (credit() <= 0) {
         return;
     }
 
@@ -831,7 +1036,7 @@ void EqdsSrc::timeToSend() {
 
     // we're ready to send again.  Let the NIC know.
     assert(!_send_blocked_on_nic);
-    if (EqdsSrc::_debug) cout << "requestSending2"<< " flow " << _flow.str() << endl;;
+    if (_debug_src) cout << "requestSending2"<< " flow " << _flow.str() << endl;;
     bool can_i_send = _nic.requestSending(*this);
     // we've just sent - NIC will say no, but will call us back when we can send.
     assert(!can_i_send);
@@ -858,15 +1063,15 @@ void EqdsSrc::rtxTimerExpired() {
     assert(first_entry != _send_times.end());
     auto seqno = first_entry->second;
 
-    auto send_record = _active_packets.find(seqno);
-    assert(send_record != _active_packets.end());
+    auto send_record = _tx_bitmap.find(seqno);
+    assert(send_record != _tx_bitmap.end());
     mem_b pkt_size = send_record->second.pkt_size;
 
     //update flightsize?
 
     _send_times.erase(first_entry);
-    if (EqdsSrc::_debug) cout << _nodename << " rtx timer expired for " << seqno << " flow " << _flow.str() << endl;
-    _active_packets.erase(send_record);
+    if (_debug_src) cout << _nodename << " rtx timer expired for " << seqno << " flow " << _flow.str() << endl;
+    _tx_bitmap.erase(send_record);
     recalculateRTO();
 
     if (!_rtx_queue.empty()) {
@@ -877,7 +1082,7 @@ void EqdsSrc::rtxTimerExpired() {
         queueForRtx(seqno, pkt_size);
         sendRTS();
         
-        if (EqdsSrc::_debug) 
+        if (_debug_src) 
             cout << "sendRTS 1"<< " flow " << _flow.str() << endl;;
 
         return;
@@ -894,11 +1099,11 @@ void EqdsSrc::rtxTimerExpired() {
     }
 #endif
 
-    if (credit() < pkt_size ) {
+    if (credit() <= 0) {
         // we don't have any credit to send.  Send an RTS (no more
         // than once per RTT) to cover the case where the receiver
         // doesn't know to send us credit
-        if (EqdsSrc::_debug) 
+        if (_debug_src) 
             cout << "sendRTS 2"<< " flow " << _flow.str() << endl;
 
         sendRTS();
@@ -907,11 +1112,17 @@ void EqdsSrc::rtxTimerExpired() {
 
     // we've got enough credit already to send this, so see if the NIC
     // is ready right now
-    if (EqdsSrc::_debug) cout << "requestSending 4\n"<< " flow " << _flow.str() << endl;;
+    if (_debug_src) cout << "requestSending 4\n"<< " flow " << _flow.str() << endl;;
 
     bool can_i_send = _nic.requestSending(*this);
     if (can_i_send) {
-        sendRtxPacket();
+        bool bytes_sent = sendRtxPacket();
+        if (bytes_sent > 0) {
+            _nic.startSending(*this, bytes_sent);
+        } else {
+            _nic.cantSend(*this);
+            return;
+        }
     }
 }
 
@@ -927,38 +1138,49 @@ void EqdsSrc::setEndTrigger(Trigger& end_trigger) {
 //  EQDS SINK                                                                                                                       
 ////////////////////////////////////////////////////////////////   
 
-EqdsSink::EqdsSink(TrafficLogger *trafficLogger, EqdsPullPacer* pullPacer) :
+EqdsSink::EqdsSink(TrafficLogger *trafficLogger, EqdsPullPacer* pullPacer, EqdsNIC& nic) :
     DataReceiver("eqdsSink"),
+    _nic(nic),
     _flow(trafficLogger), 
     _pullPacer(pullPacer), 
-    _cumulative_ack(0),
-    _highest_received(0),
-    _rtx_backlog(0),
-    _pull_no(0),
+    _expected_epsn(0),
+    _high_epsn(0),
+    _retx_backlog(0),
+    _latest_pull(0),
     _highest_pull_target(0),
-    _bytes_unacked(0),
     _received_bytes(0),
+    _accepted_bytes(0),
     _end_trigger(NULL),
-    _out_of_order(0)
+    _epsn_rx_bitmap(0),
+    _out_of_order_count(0),
+    _ack_request(false)
 {
     _nodename = "eqdsSink";  // TBD: would be nice at add nodenum to nodename
-    _stats.bytes_received = 0;
+    _stats = {0,0,0,0,0};
+    _in_pull = false;
+    _in_slow_pull = false;
 }
 
-EqdsSink::EqdsSink(TrafficLogger* trafficLogger, linkspeed_bps linkSpeed, double rate_modifier, uint16_t mtu, EventList &eventList) :
-    DataReceiver("eqdsSink"), _flow(trafficLogger), 
-    _cumulative_ack(0),
-    _highest_received(0),
-    _rtx_backlog(0),    
-    _pull_no(0),
+EqdsSink::EqdsSink(TrafficLogger* trafficLogger, linkspeed_bps linkSpeed, double rate_modifier, uint16_t mtu, EventList &eventList, EqdsNIC& nic) :
+    DataReceiver("eqdsSink"), 
+    _nic(nic),
+    _flow(trafficLogger), 
+    _expected_epsn(0),
+    _high_epsn(0),
+    _retx_backlog(0),    
+    _latest_pull(0),
     _highest_pull_target(0),
-    _bytes_unacked(0),
     _received_bytes(0),
+    _accepted_bytes(0),
     _end_trigger(NULL),
-    _out_of_order(0)
+    _epsn_rx_bitmap(0),
+    _out_of_order_count(0),
+    _ack_request(false)
 {
     _pullPacer = new EqdsPullPacer(linkSpeed, rate_modifier, mtu, eventList);
-    _stats.bytes_received = 0;
+    _stats = {0,0,0,0,0};
+    _in_pull = false;
+    _in_slow_pull = false;
 } 
 
 void EqdsSink::connect(EqdsSrc* src, Route* route){
@@ -966,184 +1188,287 @@ void EqdsSink::connect(EqdsSrc* src, Route* route){
     _route = route;
 }
 
-void EqdsSink::receivePacket(Packet &pkt) {
-    _stats.received ++;
-    _stats.bytes_received += pkt.size(); // should this include just the payload?
+void EqdsSink::handlePullTarget(EqdsBasePacket::seq_t pt){
+    if (pt > _highest_pull_target){
+        _highest_pull_target = pt;
 
-    if (pkt.type() != EQDSDATA && pkt.type() != EQDSRTS ) {
-        assert(pkt.bounced());
-        cerr << "Got bounced packet - discarded.\n";
-        pkt.free();
-        return;
-    }
-
-    bool was_retransmitting = rtx_backlog()>0; // source currently in RTX pull pacer list
-    bool was_backlogged = (_highest_pull_target > _pull_no); //source currently in standard pacer list. 
-    bool is_rts = false;
-
-    if (pkt.type() == EQDSRTS) {
-        //handle RTS here;
-
-        EqdsRtsPacket* p = dynamic_cast<EqdsRtsPacket*>(&pkt);
-        assert(p->ar());
-
-        //what happens if this is not an actual retransmit, i.e. the host decides with the ACK that it is
-        _rtx_backlog += p->retx_backlog();
-        is_rts = true; 
-
-        if (EqdsSrc::_debug) 
-            cout << "RTX_backlog++ RTS: " << _src->flow()->str() << " rtx_backlog " << rtx_backlog() << " at " << timeAsUs(getSrc()->eventlist().now()) << endl;        
-
-        //EQDSRTS packets are also data packets, keep going.
-        //return;
-
-        if (!was_retransmitting){
-            if (!was_backlogged){
-                //got an RTS but didn't even know that the source was backlogged. This means we lost all data packets in current window. Must add to standard Pull list, to ensure that after RTX phase passes,  the remaining packets are pulled normally
-                _pullPacer->requestPull(this);
-            }   
-
-            if (EqdsSrc::_debug)
-                cout << "PullPacer RequestRetransmit: " << _src->flow()->str() << " at " << timeAsUs(getSrc()->eventlist().now()) << endl;        
-
-            _pullPacer->requestRetransmit(this);
-            was_retransmitting = true;
-        }
-    }
-    else if (pkt.type() != EQDSDATA) {
-        cerr << "Got unknown packet type!\n";
-        abort();
-    }
-
-    EqdsDataPacket* p = dynamic_cast<EqdsDataPacket*>(&pkt);
-
-    if (EqdsSrc::_debug)
-        cout << "eqdsSnk: " << _src->flow()->str() << " received packet " << pkt.str() << " epsn " << p->epsn() << " cumulative ack " << _cumulative_ack << " at " << timeAsUs(getSrc()->eventlist().now()) << endl;        
-
-    if (p->pull_target() > _highest_pull_target){
-        _highest_pull_target = p->pull_target();
-
-        /*if (!was_retransmitting && rtx_backlog()>0){
-            //add this to the retransmitting senders list only if it was not already there.
-            _pullPacer->requestRetransmit(this);
-        }
-        else*/          
-        if (!was_backlogged && !was_retransmitting){
-            //add this to the active senders list only if it was not already there and source is not already retransmitting, which means it is already in the high priority class.
+        if (_retx_backlog==0 && !_in_pull){
+            _in_pull = true;
             _pullPacer->requestPull(this);
         }
     }
-   
-    if (p->header_only() && !is_rts) { //got a trimmed packet, send NACK.
-        /*if (EqdsSrc::_debug)*/ cout << " >>    received trimmed packet " << p->epsn() << " time " << timeAsNs(getSrc()->eventlist().now()) << " flow" << _src->flow()->str() << endl;
-        _stats.trimmed++;
+}
 
-        //prioritize credits to this sender! Unclear by how much we should increase here. Assume MTU for now.
-        _rtx_backlog += EqdsSrc::_mtu;
+/*void EqdsSink::handleReceiveBitmap(){
 
-        if (EqdsSrc::_debug) cout << "RTX_backlog++ trim: " << p->epsn() << " from " << getSrc()->nodename() << " rtx_backlog " << rtx_backlog() << " at " << timeAsUs(getSrc()->eventlist().now()) << " flow " << _src->flow()->str() << endl;
+}*/
 
-        EqdsNackPacket* nack_packet = nack(p->pathid(),p->epsn());
-        pkt.free();
+void EqdsSink::processData(const EqdsDataPacket& pkt){    
+    bool force_ack = false;
 
-        nack_packet->sendOn();
+    if (_src->debug())
+        cout << " EqdsSink "<< _nodename << " src " << _src->nodename() << " processData: " << pkt.epsn()
+             << " time " << timeAsNs(getSrc()->eventlist().now()) << " when expected epsn is " << _expected_epsn
+             << " ooo count " << _out_of_order_count << " flow " << _src->flow()->str()  << endl;
 
-        if (!was_retransmitting){
-            //source is now retransmitting, must add it to the list.
-            if (EqdsSrc::_debug)
-                cout << "PullPacer RequestPull: " << _src->flow()->str() << " at " << timeAsUs(getSrc()->eventlist().now()) << endl;        
+    _accepted_bytes += pkt.size();
 
-            _pullPacer->requestRetransmit(this);
-        }
+    handlePullTarget(pkt.pull_target());
 
-        return;
-    }
-   // if (EqdsSrc::_debug) cout << _nodename << " src " << _src->nodename() << " >>    received packet " << p->epsn() << " size " << p->size() << " flow " << _src->flow()->str() << endl;
-
-    //need to quantize here the packet size, as suggested in the eEQDS spec. Using actual size for now.
-    _bytes_unacked += p->size();
-
-    if (p->epsn() > _highest_received){
+    if (pkt.epsn() > _high_epsn){
         //highest_received is used to bound the sack bitmap. This is a 64 bit number in simulation, never wraps. 
         //In practice need to handle sequence number wrapping.
-        _highest_received = p->epsn();
+        _high_epsn = pkt.epsn();
     }
 
     //should send an ACK; if incoming packet is ECN marked, the ACK will be sent straight away; 
-    //otherwise ack will be delayed and sent when the pull pacer triggers, or when the ACK timer triggers. 
-    bool ecn = (bool)(p->flags() & ECN_CE);
+    //otherwise ack will be delayed until we have cumulated enough bytes / packets. 
+    bool ecn = (bool)(pkt.flags() & ECN_CE);
 
-    if (p->epsn() < _cumulative_ack || _out_of_order[p->epsn()]) {
-        if (EqdsSrc::_debug) cout << _nodename << " src " << _src->nodename() << " duplicate psn " << p->epsn() << endl;
+    if (pkt.epsn() < _expected_epsn || _epsn_rx_bitmap[pkt.epsn()]) {
+        if (EqdsSrc::_debug) cout << _nodename << " src " << _src->nodename() << " duplicate psn " << pkt.epsn() << endl;
+
         _stats.duplicates++;
 
         //sender is confused and sending us duplicates: ACK straight away.
         //this code is different from the proposed hardware implementation, as it keeps track of the ACK state of OOO packets.
-        EqdsAckPacket* ack_packet = sack(p->path_id(),ecn?p->epsn():sackBitmapBase(p->epsn()),ecn);
+        EqdsAckPacket* ack_packet = sack(pkt.path_id(),ecn?pkt.epsn():sackBitmapBase(pkt.epsn()),ecn);
+        //ack_packet->sendOn();
+        _nic.sendControlPacket(ack_packet);
+
+        _accepted_bytes = 0;//careful about this one.
+        return;
+    }
+
+    if (_received_bytes == 0) {
+        force_ack = true;
+    }
+    //packet is in window, count the bytes we got. 
+    //should only count for non RTS and non trimmed packets.
+    _received_bytes += pkt.size() - EqdsAckPacket::ACKSIZE;
+
+
+    assert(_received_bytes <= _src->flowsize());
+    if (_src->debug() && _received_bytes == _src->flowsize())
+        cout << _nodename << " received " << _received_bytes << " at " << timeAsUs(EventList::getTheEventList().now())<< endl;
+
+    if (pkt.ar()){
+        //this triggers an immediate ack; also triggers another ack later when the ooo queue drains (_ack_request tracks this state)
+        force_ack = true; 
+        _ack_request = true;
+    }
+
+
+    if (_src->debug()) cout << _nodename << " src " << _src->nodename() << " >>    cumulative ack was: " << _expected_epsn << " flow " << _src->flow()->str() << endl;
+
+    if (pkt.epsn() == _expected_epsn) {
+        while (_epsn_rx_bitmap[++_expected_epsn]){
+            //clean OOO state, this will wrap at some point.
+            _epsn_rx_bitmap[_expected_epsn] = 0;
+            _out_of_order_count--;
+        }
+        if (_src->debug()) cout << " EqdsSink "<< _nodename << " src " << _src->nodename() << " >>    cumulative ack now: " << _expected_epsn << " ooo count " << _out_of_order_count << " flow " << _src->flow()->str()  << endl;
+
+        if (_out_of_order_count==0 && _ack_request){
+            force_ack = true;
+            _ack_request = false;
+        }
+    }
+    else {
+        _epsn_rx_bitmap[pkt.epsn()] = 1;
+        _out_of_order_count ++;
+        _stats.out_of_order++;
+    }
+
+    if (ecn || shouldSack() || force_ack){
+        EqdsAckPacket* ack_packet = sack(pkt.path_id(),(ecn||pkt.ar()) ? pkt.epsn():sackBitmapBase(pkt.epsn()),ecn);
+
+        if (_src->debug()) cout << " EqdsSink "<< _nodename << " src " << _src->nodename() << " send ack now: " << _expected_epsn << " ooo count " << _out_of_order_count << " flow " << _src->flow()->str()  << endl;
+
+        _accepted_bytes = 0;
+
+        //ack_packet->sendOn();
+        _nic.sendControlPacket(ack_packet);
+    }
+}
+
+void EqdsSink::processTrimmed(const EqdsDataPacket& pkt){
+    _stats.trimmed++;
+
+    if (pkt.epsn() < _expected_epsn || _epsn_rx_bitmap[pkt.epsn()]){
+        if (_src->debug())
+            cout << " EqdsSink processTrimmed got a packet we already have: " << pkt.epsn() << " time " << timeAsNs(getSrc()->eventlist().now()) << " flow" << _src->flow()->str() << endl;
+
+        EqdsAckPacket* ack_packet = sack(pkt.path_id(),pkt.epsn(),false);
         ack_packet->sendOn();
-        _bytes_unacked = 0;//careful about this one.
-        p->free();
+        return;
+    }
+
+    if (_src->debug()) 
+        cout << " EqdsSink processTrimmed packet " << pkt.epsn() << " time " << timeAsNs(getSrc()->eventlist().now()) << " flow" << _src->flow()->str() << endl;
+
+    handlePullTarget(pkt.pull_target());
+
+    bool was_retransmitting = _retx_backlog > 0;
+
+    //prioritize credits to this sender! Unclear by how much we should increase here. Assume MTU for now.
+    _retx_backlog += EqdsBasePacket::quantize_ceil(EqdsSrc::_mtu);
+
+    if (_src->debug()) 
+        cout << "RTX_backlog++ trim: " << pkt.epsn() << " from " << getSrc()->nodename() << " rtx_backlog " << rtx_backlog() << " at " << timeAsUs(getSrc()->eventlist().now()) << " flow " << _src->flow()->str() << endl;
+
+    EqdsNackPacket* nack_packet = nack(pkt.path_id(),pkt.epsn());
+
+    //nack_packet->sendOn();
+    _nic.sendControlPacket(nack_packet);
+
+    if (!was_retransmitting){
+        //source is now retransmitting, must add it to the list.
+        if (_src->debug())
+            cout << "PullPacer RequestPull: " << _src->flow()->str() << " at " << timeAsUs(getSrc()->eventlist().now()) << endl;        
+
+        _pullPacer->requestRetransmit(this);
+    }
+}
+
+
+void EqdsSink::processRts(const EqdsRtsPacket& pkt){
+    assert(pkt.ar());
+
+    handlePullTarget(pkt.pull_target());
+
+    //what happens if this is not an actual retransmit, i.e. the host decides with the ACK that it is
+    bool was_retransmitting = _retx_backlog > 0;
+    _retx_backlog += pkt.retx_backlog();
+
+    if (_src->debug()) 
+        cout << "RTX_backlog++ RTS: " << _src->flow()->str() << " rtx_backlog " << rtx_backlog() << " at " << timeAsUs(getSrc()->eventlist().now()) << endl;        
+
+    if (!was_retransmitting){
+        if (!_in_pull){
+            //got an RTS but didn't even know that the source was backlogged. This means we lost all data packets in current window. Must add to standard Pull list, to ensure that after RTX phase passes,  the remaining packets are pulled normally
+            _in_pull = true;
+            _pullPacer->requestPull(this);
+        }
+
+        if (_src->debug())
+            cout << "1PullPacer RequestRetransmit: " << _src->flow()->str() << " at " << timeAsUs(getSrc()->eventlist().now()) << endl;        
+
+        _pullPacer->requestRetransmit(this);
+    }
+
+    bool ecn = (bool)(pkt.flags() & ECN_CE);
+
+    if (pkt.epsn() < _expected_epsn || _epsn_rx_bitmap[pkt.epsn()]) {
+        if (_src->debug()) cout << _nodename << " src " << _src->nodename() << " duplicate psn " << pkt.epsn() << endl;
+
+        _stats.duplicates++;
+
+        //sender is confused and sending us duplicates: ACK straight away.
+        //this code is different from the proposed hardware implementation, as it keeps track of the ACK state of OOO packets.
+        EqdsAckPacket* ack_packet = sack(pkt.path_id(),pkt.epsn(),ecn);
+        //ack_packet->sendOn();
+        _nic.sendControlPacket(ack_packet);
+
+        _accepted_bytes = 0;//careful about this one.
         return;
     }
 
     //packet is in window, count the bytes we got. 
-    _received_bytes += p->size() - EqdsAckPacket::ACKSIZE;
+    //should only count for non RTS and non trimmed packets.
+    _received_bytes += pkt.size() - EqdsAckPacket::ACKSIZE;
 
-    bool force_ack = false;
-    if (EqdsSrc::_debug) cout << _nodename << " src " << _src->nodename() << " >>    cumulative ack was: " << _cumulative_ack << " flow " << _src->flow()->str() << endl;
-    if (p->epsn() == _cumulative_ack) {
-        force_ack = true; // force an ack every time cumulative_ack increases - ensures we ack the last packets of a flow
-        while (_out_of_order[++_cumulative_ack]){
+    if (pkt.epsn() == _expected_epsn) {
+        while (_epsn_rx_bitmap[++_expected_epsn]){
             //clean OOO state, this will wrap at some point.
-            _out_of_order[_cumulative_ack] = 0;
+            _epsn_rx_bitmap[_expected_epsn] = 0;
+            _out_of_order_count--;
         }
-        if (EqdsSrc::_debug) cout << _nodename << " src " << _src->nodename() << " >>    cumulative ack now: " << _cumulative_ack << " flow " << _src->flow()->str()  << endl;
+        if (_src->debug())
+            cout << " EqdsSink "<< _nodename << " src " << _src->nodename() << " >>    cumulative ack now: " << _expected_epsn << " ooo count " << _out_of_order_count << " flow " << _src->flow()->str()  << endl;
 
-        //the code below will trigger earlier when getting out-of-order packets at the tail of the flow. 
-        if (_received_bytes >= (mem_b)_src->flowsize()) {
-            //if (EqdsSrc::_debug) cout << "Flow " << _name << " flowId " << _src->flowId() << " dstfinished at total bytes " << _cumulative_ack * _src->_mss << endl;
-            //end triggers are unreliable at this point!
-            /*if (_end_trigger) {
-                _end_trigger->activate();
-            }*/
+        if (_out_of_order_count==0 && _ack_request){
+            _ack_request = false;
         }
     }
     else {
-        _out_of_order[p->epsn()] = 1;
+        _epsn_rx_bitmap[pkt.epsn()] = 1;
+        _out_of_order_count ++;
         _stats.out_of_order++;
     }
 
-    if (ecn || shouldSack() || force_ack || p->ar()){
-        EqdsAckPacket* ack_packet = sack(p->path_id(),(ecn||p->ar()) ? p->epsn():sackBitmapBase(p->epsn()),ecn);
-        _bytes_unacked = 0;
+    EqdsAckPacket* ack_packet = sack(pkt.path_id(),(ecn||pkt.ar()) ? pkt.epsn():sackBitmapBase(pkt.epsn()),ecn);
 
-        ack_packet->sendOn();
-    }
-    p->free();
+    if (_src->debug()) cout << " EqdsSink "<< _nodename << " src " << _src->nodename() << " send ack now: " << _expected_epsn << " ooo count " << _out_of_order_count << " flow " << _src->flow()->str()  << endl;
+
+    _accepted_bytes = 0;
+
+    //ack_packet->sendOn();
+    _nic.sendControlPacket(ack_packet);
 }
 
-EqdsBasePacket *EqdsSink::pull() {
+void EqdsSink::receivePacket(Packet &pkt) {
+    _stats.received ++;
+    _stats.bytes_received += pkt.size(); // should this include just the payload?
+
+    switch(pkt.type()){
+        case EQDSDATA:
+            if (pkt.header_only())
+                processTrimmed((const EqdsDataPacket&)pkt);
+            else 
+                processData((const EqdsDataPacket&)pkt);
+
+            pkt.free();
+            break;
+        case EQDSRTS:
+            processRts((const EqdsRtsPacket&)pkt);
+            pkt.free();
+            break;
+        default:
+            abort();
+    }
+}
+
+uint16_t EqdsSink::nextEntropy(){
+    int spraymask = (1 << TGT_EV_SIZE) - 1;
+    int fixedmask = ~spraymask;
+    int idx = _entropy & spraymask;
+    int fixed_entropy = _entropy & fixedmask; 
+    int ev = idx++ & spraymask;
+    
+    _entropy = fixed_entropy | ev; //save for next pkt
+
+    return ev;
+}
+
+EqdsPullPacket *EqdsSink::pull() {
     //called when pull pacer is ready to give another credit to this connection.
     //TODO: need to credit in multiple of MTU here.
 
-    if (_rtx_backlog > 0)
-        _rtx_backlog = max ((mem_b)0, _rtx_backlog - EqdsSink::_credit_per_pull);
+    if (_retx_backlog > 0){
+        if (_retx_backlog > EqdsSink::_credit_per_pull)
+            _retx_backlog -= EqdsSink::_credit_per_pull;
+        else
+            _retx_backlog = 0;
+    
+        if (EqdsSrc::_debug) cout << "RTX_backlog--: " << getSrc()->nodename() << " rtx_backlog " << rtx_backlog() << " at " << timeAsUs(getSrc()->eventlist().now()) << " flow " << _src->flow()->str() << endl;        
+    }
 
-    if (EqdsSrc::_debug) cout << "RTX_backlog--: " << getSrc()->nodename() << " rtx_backlog " << rtx_backlog() << " at " << timeAsUs(getSrc()->eventlist().now()) << " flow " << _src->flow()->str() << endl;        
 
-    _pull_no += EqdsSink::_credit_per_pull; 
+    _latest_pull += EqdsSink::_credit_per_pull; 
 
-    EqdsBasePacket* pkt = NULL;
-    pkt = EqdsPullPacket::newpkt(_flow, *_route, _cumulative_ack, _pull_no,0,_srcaddr);
+    EqdsPullPacket* pkt = NULL;
+    pkt = EqdsPullPacket::newpkt(_flow, *_route, _latest_pull,nextEntropy(),_srcaddr);
+
     return pkt;
 }
 
 bool EqdsSink::shouldSack(){
-    return _bytes_unacked > _bytes_unacked_threshold;
+    return _accepted_bytes > _bytes_unacked_threshold;
 }
 
 EqdsBasePacket::seq_t EqdsSink::sackBitmapBase(EqdsBasePacket::seq_t epsn){
-    return  max(epsn - 63,_cumulative_ack+1);
+    return  max((int64_t)epsn - 63,(int64_t)(_expected_epsn+1));
 }
 
 EqdsBasePacket::seq_t EqdsSink::sackBitmapBaseIdeal(){
@@ -1152,46 +1477,52 @@ EqdsBasePacket::seq_t EqdsSink::sackBitmapBaseIdeal(){
 
     //find the lowest non-zero value in the sack bitmap; that is the candidate for the base, since it is the oldest packet that we are yet to sack.
     //on sack bitmap construction that covers a given seqno, the value is incremented. 
-    for (EqdsBasePacket::seq_t crt = _cumulative_ack; crt <= _highest_received; crt++)
-        if (_out_of_order[crt] && _out_of_order[crt]<lowest_value){
-            lowest_value = _out_of_order[crt];
+    for (EqdsBasePacket::seq_t crt = _expected_epsn; crt <= _high_epsn; crt++)
+        if (_epsn_rx_bitmap[crt] && _epsn_rx_bitmap[crt]<lowest_value){
+            lowest_value = _epsn_rx_bitmap[crt];
             lowest_position = crt;
         }
     
-    if (lowest_position + 64 > _highest_received)
-        lowest_position = _highest_received - 64;
+    if (lowest_position + 64 > _high_epsn)
+        lowest_position = _high_epsn - 64;
 
-    if (lowest_position <= _cumulative_ack)
-        lowest_position = _cumulative_ack + 1;
+    if (lowest_position <= _expected_epsn)
+        lowest_position = _expected_epsn + 1;
     
     return lowest_position;
 }
 
 uint64_t EqdsSink::buildSackBitmap(EqdsBasePacket::seq_t ref_epsn){
     //take the next 64 entries from ref_epsn and create a SACK bitmap with them
-    uint64_t bitmap = (_out_of_order[ref_epsn]!=0);
+    if (_src->debug())
+        cout << " EqdsSink: building sack for ref_epsn " << ref_epsn << endl;
+    uint64_t bitmap = (uint64_t)(_epsn_rx_bitmap[ref_epsn]!=0) << 63;
 
     for (int i=1;i<64;i++){
-        bitmap = (bitmap << 1) & (_out_of_order[ref_epsn+i]!=0);
+        bitmap = bitmap >> 1 | (uint64_t)(_epsn_rx_bitmap[ref_epsn+i]!=0) << 63;
+        if (_src->debug() && (_epsn_rx_bitmap[ref_epsn+i]!=0))
+            cout << "     Sack: " <<  ref_epsn+i << endl;
 
-        if (_out_of_order[ref_epsn+i]){
+        if (_epsn_rx_bitmap[ref_epsn+i]){
             //remember that we sacked this packet
-            if (_out_of_order[ref_epsn+i]<UINT8_MAX)
-                _out_of_order[ref_epsn+i]++;
+            if (_epsn_rx_bitmap[ref_epsn+i]<UINT8_MAX)
+                _epsn_rx_bitmap[ref_epsn+i]++;
         }
     }
+    if (_src->debug())
+        cout << "       bitmap is: " << bitmap << endl;
     return bitmap;
 }
 
 EqdsAckPacket *EqdsSink::sack(uint16_t path_id, EqdsBasePacket::seq_t seqno, bool ce) {
     uint64_t bitmap = buildSackBitmap(seqno);
-    EqdsAckPacket* pkt = EqdsAckPacket::newpkt(_flow, *_route, _cumulative_ack,seqno,_pull_no,path_id,ce,_srcaddr);
+    EqdsAckPacket* pkt = EqdsAckPacket::newpkt(_flow, *_route, _expected_epsn,seqno,path_id,ce,_srcaddr);
     pkt->set_bitmap(bitmap);
     return pkt;
 }
 
 EqdsNackPacket *EqdsSink::nack(uint16_t path_id, EqdsBasePacket::seq_t seqno) {
-    EqdsNackPacket* pkt = EqdsNackPacket::newpkt(_flow, *_route, seqno, _pull_no,path_id,_srcaddr);
+    EqdsNackPacket* pkt = EqdsNackPacket::newpkt(_flow, *_route, seqno, path_id, _srcaddr);
     return pkt;
 }
 
@@ -1209,7 +1540,7 @@ uint32_t EqdsSink::reorder_buffer_size() {
     // it's not very efficient to count each time, but if we only do
     // this occasionally when the sink logger runs, it should be OK.
     for (uint32_t i = 0; i < eqdsMaxInFlightPkts; i++) {
-        if (_out_of_order[i]) count++;
+        if (_epsn_rx_bitmap[i]) count++;
     }
     return count;
 }
@@ -1231,7 +1562,7 @@ void EqdsPullPacer::doNextEvent() {
     }
 
     EqdsSink* sink = NULL;
-    EqdsBasePacket *pullPkt;
+    EqdsPullPacket *pullPkt;
 
     if (!_rtx_senders.empty()){
         sink = _rtx_senders.front();
@@ -1242,12 +1573,12 @@ void EqdsPullPacer::doNextEvent() {
         // TODO if more pulls are needed, enqueue again
         if (sink->rtx_backlog()>0)
             _rtx_senders.push_back(sink);
-        else if (sink->backlog() <= 0 && sink->backlog()+sink->getMaxCwnd() > 0) 
-            //this sink has had its demand satisfied, move it to idle senders list.
-            _idle_senders.push_back(sink);
     }
     else if (!_active_senders.empty()){
         sink = _active_senders.front();
+
+        assert(sink->inPullQueue());
+
         _active_senders.pop_front();
         pullPkt = sink->pull();
 
@@ -1255,24 +1586,35 @@ void EqdsPullPacer::doNextEvent() {
         if (EqdsSrc::_debug) cout << "PullPacer: Active: " << sink->getSrc()->nodename() << " backlog " << sink->backlog() << " at " << timeAsUs(eventlist().now()) << endl;
         if (sink->backlog()>0)
             _active_senders.push_back(sink);
-        else //this sink has had its demand satisfied, move it to idle senders list.
+        else { //this sink has had its demand satisfied, move it to idle senders list.
             _idle_senders.push_back(sink);
+            sink->removeFromPullQueue();
+            sink->addToSlowPullQueue();
+        }
     }
     else { //no active senders, we must have at least one idle sender
         sink = _idle_senders.front();
         _idle_senders.pop_front();
-        if (EqdsSrc::_debug) cout << "PullPacer: Idle: " << sink->getSrc()->nodename() << " at " << timeAsUs(eventlist().now()) << endl;
-        pullPkt = sink->pull();
+        if(!sink->inSlowPullQueue())
+            sink->addToSlowPullQueue();
 
-        if (sink->backlog() + sink->getMaxCwnd() > 0)
+        if (EqdsSrc::_debug) cout << "PullPacer: Idle: " << sink->getSrc()->nodename() << " at " << timeAsUs(eventlist().now()) << " backlog " << sink->backlog() << " " << sink->slowCredit() << " max " << EqdsBasePacket::quantize_floor(sink->getMaxCwnd()) <<endl;
+        pullPkt = sink->pull();
+        pullPkt->set_slow_pull(true);
+
+        if (sink->backlog() == 0 && sink->slowCredit() < EqdsBasePacket::quantize_floor(sink->getMaxCwnd())){
             //only send upto 1BDP worth of speculative credit.
             //backlog will be negative once this source starts receiving speculative credit. 
             _idle_senders.push_back(sink);
+        }
+        else
+            sink->removeFromSlowPullQueue();
     }
 
     pullPkt->flow().logTraffic(*pullPkt, *this, TrafficLogger::PKT_SEND);
-    pullPkt->sendOn();
 
+    //pullPkt->sendOn();
+    sink->getNIC()->sendControlPacket(pullPkt);
     _active = true;
 
     eventlist().sourceIsPendingRel(*this, _pktTime);
@@ -1305,9 +1647,9 @@ bool EqdsPullPacer::isIdle(EqdsSink* sink){
 
 void EqdsPullPacer::requestPull(EqdsSink *sink) {
     if (isActive(sink)){
-        if (EqdsSrc::_debug) cout << "BLA" << endl;
-        return; 
+        abort(); 
     }
+    assert (sink->inPullQueue());
 
     _active_senders.push_back(sink);
     // TODO ack timer

@@ -1,0 +1,32 @@
+connection_matrices/one.cm 
+!Param -end 1000
+!tailFCT 180
+connection_matrices/bidir.cm 
+!Param -end 1000
+!tailFCT 190
+connection_matrices/incast.cm
+!Param -end 3000
+!tailFCT 2500
+connection_matrices/incast_128.cm
+!Param -end 30000
+!tailFCT 23000
+connection_matrices/outcast_incast.cm
+!Param -end 3000
+!tailFCT 2500
+!FCT Eqds_1_0 215
+connection_matrices/perm_16n_16c_2MB.cm
+!Param -end 1000
+!Param -paths 128
+!tailFCT 210
+connection_matrices/perm_16n_16c_2MB.cm
+!Param -end 2000
+!Param -paths 1
+!tailFCT 1300
+connection_matrices/perm_1024n_1024c_0u_2000000b.cm
+!Param -end 2000
+!Param -paths 128
+!tailFCT 220
+connection_matrices/perm_1024n_1024c_0u_2000000b.cm
+!Param -end 3000
+!Param -paths 1
+!tailFCT 1300
