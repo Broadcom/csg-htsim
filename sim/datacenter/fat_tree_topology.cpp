@@ -402,7 +402,8 @@ void FatTreeTopology::set_custom_params(uint32_t no_of_nodes) {
             exit(1);
         }
         if (_radix_down[tier] % _bundlesize[tier] != 0) {
-            cerr << "Mismatch between radix " << _radix_down[tier] << " and bundlesize " << _bundlesize[tier] << "\n";
+            cerr << "Mismatch between tier " << tier << " down radix of " << _radix_down[tier] << " and bundlesize " << _bundlesize[tier] << "\n";
+            cerr << "Radix must be a multiple of bundlesize\n";
             exit(1);
         }
         if (tier < (_tiers - 1) && _radix_up[tier] == 0) {
@@ -410,7 +411,8 @@ void FatTreeTopology::set_custom_params(uint32_t no_of_nodes) {
             exit(1);
         }
         if (tier < (_tiers - 1) && _radix_up[tier] % _bundlesize[tier+1] != 0) {
-            cerr << "Mismatch between radix " << _radix_up[tier] << " and bundlesize " << _bundlesize[tier+1] << "\n";
+            cerr << "Mismatch between tier " << tier << " up radix of " << _radix_up[tier] << " and tier " << tier+1 << " down bundlesize " << _bundlesize[tier+1] << "\n";
+            cerr << "Radix must be a multiple of bundlesize\n";
             exit(1);
         }
     }
@@ -430,7 +432,7 @@ void FatTreeTopology::set_custom_params(uint32_t no_of_nodes) {
     no_of_pods = no_of_nodes / _hosts_per_pod; // we don't allow multi-port hosts yet
     assert(_bundlesize[TOR_TIER] == 1);
     if (_hosts_per_pod % _radix_down[TOR_TIER] != 0) {
-        cerr << "Mismatch between radix " << _radix_down[TOR_TIER] << " and podsize " << _hosts_per_pod << endl;
+        cerr << "Mismatch between TOR radix " << _radix_down[TOR_TIER] << " and podsize " << _hosts_per_pod << endl;
         exit(1);
     }
     _tor_switches_per_pod = _hosts_per_pod / _radix_down[TOR_TIER];
@@ -453,7 +455,7 @@ void FatTreeTopology::set_custom_params(uint32_t no_of_nodes) {
              << " aggregation switches per pod required by " << no_of_tor_uplinks << " TOR uplinks in "
              << no_of_pods << " pods " << " with an aggregation switch down radix of " << _radix_down[AGG_TIER] << endl;
         if (_bundlesize[AGG_TIER] == 1 && _radix_up[TOR_TIER] % _agg_switches_per_pod  == 0 && _radix_up[TOR_TIER]/_agg_switches_per_pod > 1) {
-            cerr << "Did you miss specifying Tier 1 bundle size of " << _radix_up[TOR_TIER]/_agg_switches_per_pod << "?" << endl;
+            cerr << "Did you miss specifying a Tier 1 bundle size of " << _radix_up[TOR_TIER]/_agg_switches_per_pod << "?" << endl;
         } else if (_radix_up[TOR_TIER] % _agg_switches_per_pod  == 0
                    && _radix_up[TOR_TIER]/_agg_switches_per_pod != _bundlesize[AGG_TIER]) {
             cerr << "Tier 1 bundle size is " << _bundlesize[AGG_TIER] << ". Did you mean it to be "
@@ -469,6 +471,28 @@ void FatTreeTopology::set_custom_params(uint32_t no_of_nodes) {
 
         assert(no_of_agg_uplinks % _radix_down[CORE_TIER] == 0);
         no_of_core_switches = no_of_agg_uplinks / _radix_down[CORE_TIER];
+
+        if (no_of_core_switches % _agg_switches_per_pod != 0) {
+            cerr << "Topology results in " << no_of_core_switches << " core switches, which isn't an integer multiple of "
+                 << _agg_switches_per_pod << " aggregation switches per pod, computed from Tier 0 and 1 values\n";
+            exit(1);
+        }
+
+        if ((no_of_core_switches * _bundlesize[CORE_TIER])/ _agg_switches_per_pod  != _radix_up[AGG_TIER]) {
+            cerr << "Mismatch between the AGG switch up-radix of " << _radix_up[AGG_TIER] << " and calculated "
+                 << _agg_switches_per_pod << " aggregation switched per pod with " << no_of_core_switches << " core switches" << endl;
+            if (_bundlesize[CORE_TIER] == 1
+                && _radix_up[AGG_TIER] % (no_of_core_switches/_agg_switches_per_pod) == 0
+                && _radix_up[AGG_TIER] / (no_of_core_switches/_agg_switches_per_pod) > 1) {
+                cerr << "Did you miss specifying a Tier 2 bundle size of "
+                     << _radix_up[AGG_TIER] / (no_of_core_switches/_agg_switches_per_pod) << "?" << endl;
+            } else if (_radix_up[AGG_TIER] % (no_of_core_switches/_agg_switches_per_pod) == 0
+                       && _radix_up[AGG_TIER] / (no_of_core_switches/_agg_switches_per_pod) != _bundlesize[CORE_TIER]) {
+                cerr << "Tier 2 bundle size is " << _bundlesize[CORE_TIER] << ". Did you mean it to be "
+                     << _radix_up[AGG_TIER] /	(no_of_core_switches/_agg_switches_per_pod) << "?" << endl;
+            }
+            exit(1);
+        }
     }
 
     cout << "No of nodes: " << no_of_nodes << endl;
@@ -660,7 +684,7 @@ FatTreeTopology::alloc_queue(QueueLogger* queueLogger, linkspeed_bps speed, mem_
     case LOSSLESS_INPUT_ECN: 
         return new LosslessOutputQueue(speed, memFromPkt(10000), *_eventlist, queueLogger,1,memFromPkt(16));
     case COMPOSITE_ECN:
-        if (tor) 
+        if (tor && dir == DOWNLINK) 
             return new CompositeQueue(speed, queuesize, *_eventlist, queueLogger);
         else
             return new ECNQueue(speed, memFromPkt(2*SWITCH_BUFFER), *_eventlist, queueLogger, memFromPkt(15));
@@ -859,7 +883,7 @@ void FatTreeTopology::init_network(){
       printf("\n");
       }*/
     
-    // Upper layer in pod to core!
+    // Upper layer in pod to core
     if (_tiers == 3) {
         for (uint32_t agg = 0; agg < NAGG; agg++) {
             uint32_t podpos = agg%(_agg_switches_per_pod);
@@ -877,6 +901,7 @@ void FatTreeTopology::init_network(){
                     assert(queues_nup_nc[agg][core][b] == NULL);
                     queues_nup_nc[agg][core][b] = alloc_queue(queueLogger, _queue_up[AGG_TIER], UPLINK, AGG_TIER);
                     queues_nup_nc[agg][core][b]->setName("US" + ntoa(agg) + "->CS" + ntoa(core) + "(" + ntoa(b) + ")");
+                    //cout << queues_nup_nc[agg][core][b]->str() << endl;
                     //if (logfile) logfile->writeName(*(queues_nup_nc[agg][core]));
         
                     simtime_picosec hop_latency = (_hop_latency == 0) ? _link_latencies[CORE_TIER] : _hop_latency;

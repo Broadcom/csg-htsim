@@ -1,0 +1,28 @@
+# Test 3-tier FatTree that is supposed to match	the default auto-generated topology
+Nodes 1024
+Tiers 3
+Podsize 64
+
+Tier 0
+Oversubscribed 1
+Downlink_speed_Gbps 100
+Radix_Down 8
+Radix_Up 8
+Downlink_Latency_ns 1000
+Switch_Latency_ns 0
+
+Tier 1
+Oversubscribed 1
+Downlink_speed_Gbps 100
+Radix_Down 8
+Radix_Up 8
+Downlink_Latency_ns 1000
+Switch_Latency_ns 0
+Bundle 1
+
+Tier 2
+Downlink_speed_Gbps 100
+Radix_Down 16
+Downlink_Latency_ns 1000
+Switch_Latency_ns 0
+Bundle 1
