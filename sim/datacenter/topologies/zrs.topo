@@ -1,0 +1,21 @@
+Nodes 432
+Tiers 3
+Podsize 36
+
+Tier 0
+Downlink_speed_Gbps 100
+Radix_Down 6
+Radix_Up 6
+Downlink_Latency_ns 1000
+
+Tier 1
+Downlink_speed_Gbps 100
+Radix_Down 6
+Radix_Up 6
+Downlink_Latency_ns 1000
+
+Tier 2
+Downlink_speed_Gbps 100
+Radix_Down 36
+Downlink_Latency_ns 600000
+Bundle 3

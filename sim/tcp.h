@@ -11,6 +11,7 @@
 #include "network.h"
 #include "tcppacket.h"
 #include "eventlist.h"
+#include "trigger.h"
 #include "sent_packets.h"
 
 //#define MODEL_RECEIVE_WINDOW 1
@@ -26,7 +27,7 @@ class TcpSink;
 class MultipathTcpSrc;
 class MultipathTcpSink;
 
-class TcpSrc : public PacketSink, public EventSource {
+class TcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     friend class TcpSink;
 public:
     TcpSrc(TcpLogger* logger, TrafficLogger* pktlogger, EventList &eventlist);
@@ -37,6 +38,13 @@ public:
         _mSrc = multipathSrc;
     };
 
+    // called from a trigger to start the flow.
+    virtual void activate() {
+        startflow();
+    }
+
+    void set_end_trigger(Trigger& trigger);
+
     void doNextEvent();
     virtual void receivePacket(Packet& pkt);
 
@@ -46,7 +54,8 @@ public:
         _flow_size = flow_size_in_bytes+_mss;
         cout << "Setting flow size to " << _flow_size << endl;
     }
-    flowid_t getFlowId() {return _flow.flow_id();}
+    inline void set_flowid(flowid_t flow_id) { _flow.set_flowid(flow_id);}
+    inline flowid_t flow_id() {return _flow.flow_id();}
     
     void set_ssthresh(uint64_t s){_ssthresh = s;}
     void set_cwnd(uint64_t s){_cwnd = s;}
@@ -121,6 +130,8 @@ private:
     const Route* _old_route;
     uint64_t _last_packet_with_old_route;
 
+    Trigger* _end_trigger;
+
     // Housekeeping
     TcpLogger* _logger;
     //TrafficLogger* _pktlogger;
@@ -148,6 +159,8 @@ public:
     inline void joinMultipathConnection(MultipathTcpSink* multipathSink){
         _mSink = multipathSink;
     };
+
+    void set_end_trigger(Trigger& trigger);
 
     void receivePacket(Packet& pkt);
     TcpAck::seq_t _cumulative_ack; // the packet we have cumulatively acked
@@ -180,6 +193,8 @@ private:
     void send_ack(simtime_picosec ts,bool marked);
 
     string _nodename;
+
+    Trigger* _end_trigger;
 };
 
 class TcpRtxTimerScanner : public EventSource {

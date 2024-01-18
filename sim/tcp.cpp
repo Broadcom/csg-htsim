@@ -61,6 +61,8 @@ TcpSrc::TcpSrc(TcpLogger* logger, TrafficLogger* pktlogger,
     _RFC2988_RTO_timeout = timeInf;
 
     _nodename = "tcpsrc";
+
+    _end_trigger = 0;
 }
 
 #ifdef PACKET_SCATTER
@@ -185,6 +187,10 @@ TcpSrc::receivePacket(Packet& pkt)
 
     if (seqno >= _flow_size){
         cout << "Flow " << nodename() << " finished at " << timeAsMs(eventlist().now()) << endl;        
+        if (_end_trigger) {
+            _end_trigger->activate();
+        }
+        // return;
     }
   
     if (seqno > _last_acked) { // a brand new ack
@@ -569,6 +575,11 @@ void TcpSrc::rtx_timer_hook(simtime_picosec now, simtime_picosec period) {
     }
 }
 
+void TcpSrc::set_end_trigger(Trigger& trigger)
+{
+    _end_trigger = &trigger;
+}
+
 void TcpSrc::doNextEvent() {
     if(_rtx_timeout_pending) {
         _rtx_timeout_pending = false;
@@ -621,6 +632,7 @@ TcpSink::TcpSink()
     : DataReceiver("TCPsink"), _cumulative_ack(0) , _packets(0), _mSink(0), _crt_path(0)
 {
     _nodename = "tcpsink";
+    _end_trigger = 0;
 }
 
 void 
@@ -725,6 +737,10 @@ void TcpSink::set_paths(vector<const Route*>* rt) {
     }
 }
 #endif
+
+void TcpSink::set_end_trigger(Trigger& trigger) {
+    _end_trigger = &trigger;
+}
 
 ////////////////////////////////////////////////////////////////
 //  TCP RETRANSMISSION TIMER
