@@ -600,6 +600,10 @@ int main(int argc, char **argv) {
         //cout << "Connection " << crt->src << "->" <<crt->dst << " starting at " << crt->start << " size " << crt->size << endl;
 
         ndpSrc = new NdpSrc(NULL, NULL, eventlist,rts);
+        // If traffic logging is enabled, attach the per-packet traffic logger
+        if (log_traffic) {
+            ndpSrc->set_traffic_logger(&traffic_logger);
+        }
         ndpSrc->setCwnd(cwnd*Packet::data_packet_size());
         ndp_srcs.push_back(ndpSrc);
         ndpSrc->set_dst(dest);
