@@ -7,14 +7,14 @@ make htsim_roce htsim_swift || exit 1
 
 echo ""
 echo "=== Running RoCE simulation ==="
-./htsim_roce -o roce_log -nodes 8 -conns 8 -q 15 -end 10000 \
+./htsim_roce -o roce_log -nodes 16 -conns 16 -q 15 -end 10000 \
     -strat single -tm simple_permutation.tm > roce_debug.txt 2>&1
 
 echo "RoCE simulation completed"
 echo ""
 
 echo "=== Running Swift simulation ==="
-./htsim_swift -o swift_log -nodes 8 -conns 8 -q 8 -cwnd 15 \
+./htsim_swift -o swift_log -nodes 16 -conns 16 -q 8 -cwnd 15 \
     -tm simple_permutation.tm > swift_debug.txt 2>&1
 
 echo "Swift simulation completed"
