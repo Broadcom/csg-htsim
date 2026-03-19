@@ -69,8 +69,16 @@ class BarrierTrigger: public Trigger {
 public:
     BarrierTrigger(EventList& eventlist, triggerid_t id, size_t activations_needed);
     virtual void activate();
+    
+    //  - reArm the barrier if we call activate with a bool flag==true
+    virtual void activate(bool re_arm){
+        activate();
+        if (re_arm==true && _activations_remaining==0)
+            _activations_remaining = _n_members;
+    };
 private:
     size_t _activations_remaining;
+    size_t _n_members;// 
 };
 
 #endif

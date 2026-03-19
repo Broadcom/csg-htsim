@@ -21,6 +21,7 @@ struct connection{
     triggerid_t trigger;
     simtime_picosec start;
     int priority;
+    bool addOnTriggerSignal; // Fong
 };
 
 typedef enum {UNSPECIFIED, SINGLE_SHOT, MULTI_SHOT, BARRIER} trigger_type;

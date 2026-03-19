@@ -748,6 +748,9 @@ bool ConnectionMatrix::load(istream& file){
             c->dst = stoi(tokens[0].substr(dstix));
             c->priority = 2000000;
             c->start = NO_START;
+
+            c->addOnTriggerSignal=false; // Fong
+
             for (size_t i = 1; i < tokens.size(); i++) {
                 if (tokens[i] == "start") {
                     i++;
@@ -763,6 +766,8 @@ bool ConnectionMatrix::load(istream& file){
                         cerr << "Flow ID zero is not allowed\n";
                         exit(1);
                     }
+                } else if (tokens[i] == "addon") {
+                    c->addOnTriggerSignal=true;  // Fong
                 } else if (tokens[i] == "trigger") {
                     i++;
                     c->trigger = stoi(tokens[i]);
