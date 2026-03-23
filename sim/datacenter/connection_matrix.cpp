@@ -749,7 +749,7 @@ bool ConnectionMatrix::load(istream& file){
             c->priority = 2000000;
             c->start = NO_START;
 
-            c->addOnTriggerSignal=false; // Fong
+            c->addOnTriggerSignal=false; // 
 
             for (size_t i = 1; i < tokens.size(); i++) {
                 if (tokens[i] == "start") {
@@ -767,7 +767,7 @@ bool ConnectionMatrix::load(istream& file){
                         exit(1);
                     }
                 } else if (tokens[i] == "addon") {
-                    c->addOnTriggerSignal=true;  // Fong
+                    c->addOnTriggerSignal=true;  // 
                 } else if (tokens[i] == "trigger") {
                     i++;
                     c->trigger = stoi(tokens[i]);
